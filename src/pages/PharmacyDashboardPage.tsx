@@ -100,45 +100,26 @@ export const PharmacyDashboardPage: React.FC = () => {
 
   // Reservation Details Modal (Requirement 3)
   const [selectedResForDetails, setSelectedResForDetails] = useState<Reservation | null>(null);
-  const [isDeletingListingId, setIsDeletingListingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || user.role !== 'PHARMACY') {
       navigate('/login');
       return;
     }
-    loadAllPharmacyData(true);
+    loadAllPharmacyData();
 
-    const handleStockUpdate = (e: any) => {
-      const detail = (e as CustomEvent)?.detail;
-      // Strict pharmacy isolation: ignore updates belonging to other pharmacies
-      if (detail?.pharmacyId && currentPharm && detail.pharmacyId !== currentPharm.id) {
-        return;
-      }
-      refreshPharmacyDataSilently();
-    };
-
-    const handleAlertUpdate = (e: any) => {
-      const detail = (e as CustomEvent)?.detail;
-      if (detail?.pharmacyId && currentPharm && detail.pharmacyId !== currentPharm.id) {
-        return;
-      }
-      refreshPharmacyDataSilently();
-    };
-
-    window.addEventListener('medistock_alert_updated', handleAlertUpdate);
-    window.addEventListener('medistock_stock_updated', handleStockUpdate);
+    const handleUpdate = () => loadAllPharmacyData();
+    window.addEventListener('medistock_alert_updated', handleUpdate);
+    window.addEventListener('medistock_stock_updated', handleUpdate);
 
     return () => {
-      window.removeEventListener('medistock_alert_updated', handleAlertUpdate);
-      window.removeEventListener('medistock_stock_updated', handleStockUpdate);
+      window.removeEventListener('medistock_alert_updated', handleUpdate);
+      window.removeEventListener('medistock_stock_updated', handleUpdate);
     };
-  }, [user, currentPharm?.id]);
+  }, [user]);
 
-  const loadAllPharmacyData = async (isInitial = false) => {
-    if (isInitial) {
-      setIsLoading(true);
-    }
+  const loadAllPharmacyData = async () => {
+    setIsLoading(true);
     try {
       const pharms = await api.getPharmacies({ onlyApproved: false });
       let myPharm = pharms.find(p => 
@@ -186,30 +167,7 @@ export const PharmacyDashboardPage: React.FC = () => {
     } catch (e) {
       console.error('Failed loading pharmacy data', e);
     } finally {
-      if (isInitial) {
-        setIsLoading(false);
-      }
-    }
-  };
-
-  // Background silent refresh that NEVER triggers the full-screen loading spinner on any device
-  const refreshPharmacyDataSilently = async () => {
-    if (!currentPharm) return;
-    try {
-      const [inv, pharmRes, pharmBills, alts, catalogue] = await Promise.all([
-        api.getInventory({ pharmacyId: currentPharm.id }),
-        api.getPharmacyReservations(currentPharm.id),
-        api.getPharmacyBills(currentPharm.id),
-        api.getPharmacyAlerts(currentPharm.id),
-        api.getMedicines(),
-      ]);
-      setInventory(inv);
-      setReservations(pharmRes);
-      setBills(pharmBills);
-      setAlerts(alts);
-      setMedicinesCatalogue(catalogue);
-    } catch (e) {
-      console.warn('Silent pharmacy refresh warning:', e);
+      setIsLoading(false);
     }
   };
 
@@ -376,7 +334,6 @@ export const PharmacyDashboardPage: React.FC = () => {
 
   const handleDeleteClick = async (listingId: string) => {
     if (!confirm('Are you sure you want to remove this medicine listing from your stock?')) return;
-    setIsDeletingListingId(listingId);
     try {
       await api.deleteInventoryItem(listingId, currentPharm?.id);
       if (currentPharm) {
@@ -385,8 +342,6 @@ export const PharmacyDashboardPage: React.FC = () => {
       }
     } catch (e: any) {
       alert(e.message || 'Failed to delete listing.');
-    } finally {
-      setIsDeletingListingId(null);
     }
   };
 
@@ -719,16 +674,11 @@ export const PharmacyDashboardPage: React.FC = () => {
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
-                            disabled={isDeletingListingId === item.id}
                             onClick={() => handleDeleteClick(item.id)}
-                            className="p-1 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors disabled:opacity-50"
+                            className="p-1 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
                             title="Delete"
                           >
-                            {isDeletingListingId === item.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
                       </tr>
@@ -1093,7 +1043,7 @@ export const PharmacyDashboardPage: React.FC = () => {
                     const medCat = res.medicine?.category || res.medicine_category || 'General';
                     const medStrength = res.variant_details || res.medicine?.strength_form || res.medicine_strength || 'Standard';
                     const medComp = res.medicine?.composition || res.medicine?.active_ingredient || res.medicine_composition || '';
-                    const pickupDeadline = new Date(res.expires_at || new Date(res.created_at).getTime() + 4 * 60 * 60 * 1000).toLocaleString('en-IN', {
+                    const pickupDeadline = new Date(res.expires_at || new Date(res.created_at).getTime() + 48 * 60 * 60 * 1000).toLocaleString('en-IN', {
                       day: 'numeric',
                       month: 'short',
                       hour: 'numeric',

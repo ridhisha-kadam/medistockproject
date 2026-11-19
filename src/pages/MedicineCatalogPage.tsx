@@ -998,7 +998,7 @@ export const MedicineCatalogPage: React.FC = () => {
                           onClick={() => handleReserve(item)}
                           className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors whitespace-nowrap"
                         >
-                          {isReserving ? 'Reserving...' : 'Reserve Medicine (4h)'}
+                          {isReserving ? 'Reserving...' : 'Reserve Medicine (48h)'}
                         </button>
                       </div>
                     </div>

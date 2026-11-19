@@ -104,12 +104,7 @@ export const Navbar: React.FC = () => {
 
   return (
     <>
-      <header
-        className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all pt-2.5 sm:pt-0"
-        style={{
-          paddingTop: 'max(0.65rem, env(safe-area-inset-top))'
-        }}
-      >
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <Link to="/" className="flex items-center gap-2.5 group">
@@ -207,157 +202,124 @@ export const Navbar: React.FC = () => {
                   )}
                 </button>
 
-                {/* Notification Centered Modal Panel with Backdrop Overlay (Centered on Phone Screen) */}
+                {/* Notification Dropdown Menu */}
                 {isNotificationOpen && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-150">
-                    {/* Backdrop Click Dismiss */}
-                    <div 
-                      className="absolute inset-0" 
-                      onClick={() => setIsNotificationOpen(false)}
-                      aria-label="Close notification panel"
-                    />
-
-                    {/* Centered Modal Container */}
-                    <div 
-                      className="relative w-full max-w-sm sm:max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col z-10 max-h-[85vh] animate-in zoom-in-95 duration-150"
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        marginTop: 'max(0.5rem, env(safe-area-inset-top))',
-                        marginBottom: 'max(0.5rem, env(safe-area-inset-bottom))',
-                      }}
-                    >
-                      {/* Header */}
-                      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center">
-                            <Bell className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <h4 className="text-xs font-extrabold text-slate-900">Notifications & Alerts</h4>
-                            <p className="text-[10px] text-slate-400">Live reservation & stock alerts</p>
-                          </div>
-                          {unreadCount > 0 && (
-                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full ml-1">
-                              {unreadCount} new
-                            </span>
-                          )}
+                  <div className="absolute right-0 mt-2.5 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 py-3 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-4 pb-2.5 border-b border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                          <Bell className="w-3.5 h-3.5" />
                         </div>
-                        <div className="flex items-center gap-2">
-                          {unreadCount > 0 && (
-                            <button
-                              type="button"
-                              onClick={handleMarkAllRead}
-                              className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline"
-                            >
-                              Mark read
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setIsNotificationOpen(false)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                            aria-label="Close"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Internal scrollable notification feed */}
-                      <div className="max-h-[55vh] overflow-y-auto divide-y divide-slate-100 px-3 py-2">
-                        {alerts.length === 0 ? (
-                          <div className="p-8 text-center text-xs text-slate-400">
-                            <Bell className="w-8 h-8 mx-auto mb-2 text-slate-300 opacity-60" />
-                            <p className="font-semibold text-slate-600">No notifications yet</p>
-                            <p className="text-[11px] text-slate-400 mt-0.5">
-                              Your medicine reservation updates, collection deadlines, and 30-min reminders will appear here.
-                            </p>
-                          </div>
-                        ) : (
-                          alerts.map((notif) => (
-                            <div
-                              key={notif.id}
-                              onClick={() => handleNotificationClick(notif)}
-                              className={`p-3 rounded-xl transition-all cursor-pointer text-xs space-y-1.5 ${
-                                notif.read_status
-                                  ? 'hover:bg-slate-50 text-slate-600'
-                                  : 'bg-emerald-50/70 hover:bg-emerald-50 text-slate-900 font-medium'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                                  notif.type === 'RESERVATION_CONFIRMED'
-                                    ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                    : notif.type === 'PICKUP_REMINDER_30M'
-                                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                                    : notif.type === 'STOCK_AUTO_RESTORED' || notif.type === 'RESERVATION_EXPIRED'
-                                    ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                    : notif.type === 'NEW_RESERVATION'
-                                    ? 'bg-purple-100 text-purple-800 border border-purple-200'
-                                    : 'bg-slate-100 text-slate-700'
-                                }`}>
-                                  {notif.type === 'RESERVATION_CONFIRMED'
-                                    ? '📱 SMS Dispatched'
-                                    : notif.type === 'PICKUP_REMINDER_30M'
-                                    ? '⏰ 30-Min Reminder'
-                                    : notif.type === 'STOCK_AUTO_RESTORED'
-                                    ? '⚠️ Stock Restored'
-                                    : notif.type === 'RESERVATION_EXPIRED'
-                                    ? '❌ Expired'
-                                    : notif.type === 'NEW_RESERVATION'
-                                    ? '🔔 New Reservation'
-                                    : 'Notice'}
-                                </span>
-                                <span className="text-[10px] text-slate-400 whitespace-nowrap">
-                                  {new Date(notif.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                                </span>
-                              </div>
-                              <p className="text-[11px] leading-relaxed text-slate-800">{notif.message}</p>
-                            </div>
-                          ))
+                        <h4 className="text-xs font-extrabold text-slate-900">Notifications & Alerts</h4>
+                        {unreadCount > 0 && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full">
+                            {unreadCount} new
+                          </span>
                         )}
                       </div>
+                      {unreadCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleMarkAllRead}
+                          className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
 
-                      {/* Footer */}
-                      <div className="px-4 py-2.5 border-t border-slate-100 flex items-center justify-between text-xs bg-slate-50/50">
-                        <span className="text-[10px] text-slate-400">
-                          Mobile: +91 {user?.mobile_number || 'Registered'}
-                        </span>
-                        {isCustomer ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsNotificationOpen(false);
-                              navigate('/customer/reservations');
-                            }}
-                            className="text-emerald-700 font-bold hover:underline text-xs"
+                    <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 px-2 py-1">
+                      {alerts.length === 0 ? (
+                        <div className="p-8 text-center text-xs text-slate-400">
+                          <Bell className="w-8 h-8 mx-auto mb-2 text-slate-300 opacity-60" />
+                          <p className="font-semibold text-slate-600">No notifications yet</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Your medicine reservation updates, collection deadlines, and 30-min reminders will appear here.
+                          </p>
+                        </div>
+                      ) : (
+                        alerts.map((notif) => (
+                          <div
+                            key={notif.id}
+                            onClick={() => handleNotificationClick(notif)}
+                            className={`p-3 rounded-xl transition-all cursor-pointer text-xs space-y-1.5 ${
+                              notif.read_status
+                                ? 'hover:bg-slate-50 text-slate-600'
+                                : 'bg-emerald-50/70 hover:bg-emerald-50 text-slate-900 font-medium'
+                            }`}
                           >
-                            My Reservations →
-                          </button>
-                        ) : isPharmacy ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsNotificationOpen(false);
-                              navigate('/pharmacy');
-                            }}
-                            className="text-emerald-700 font-bold hover:underline text-xs"
-                          >
-                            Pharmacy Dashboard →
-                          </button>
-                        ) : isAdmin ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsNotificationOpen(false);
-                              navigate('/admin');
-                            }}
-                            className="text-emerald-700 font-bold hover:underline text-xs"
-                          >
-                            Admin Dashboard →
-                          </button>
-                        ) : null}
-                      </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                notif.type === 'RESERVATION_CONFIRMED'
+                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                  : notif.type === 'PICKUP_REMINDER_30M'
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                  : notif.type === 'STOCK_AUTO_RESTORED' || notif.type === 'RESERVATION_EXPIRED'
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                  : notif.type === 'NEW_RESERVATION'
+                                  ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {notif.type === 'RESERVATION_CONFIRMED'
+                                  ? '📱 SMS Dispatched'
+                                  : notif.type === 'PICKUP_REMINDER_30M'
+                                  ? '⏰ 30-Min Reminder'
+                                  : notif.type === 'STOCK_AUTO_RESTORED'
+                                  ? '⚠️ Stock Restored'
+                                  : notif.type === 'RESERVATION_EXPIRED'
+                                  ? '❌ Expired'
+                                  : notif.type === 'NEW_RESERVATION'
+                                  ? '🔔 New Reservation'
+                                  : 'Notice'}
+                              </span>
+                              <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                                {new Date(notif.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                              </span>
+                            </div>
+                            <p className="text-[11px] leading-relaxed text-slate-800">{notif.message}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="px-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="text-[10px] text-slate-400">
+                        Mobile: +91 {user?.mobile_number || 'Registered'}
+                      </span>
+                      {isCustomer ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsNotificationOpen(false);
+                            navigate('/customer/reservations');
+                          }}
+                          className="text-emerald-700 font-bold hover:underline text-xs"
+                        >
+                          My Reservations →
+                        </button>
+                      ) : isPharmacy ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsNotificationOpen(false);
+                            navigate('/pharmacy');
+                          }}
+                          className="text-emerald-700 font-bold hover:underline text-xs"
+                        >
+                          Pharmacy Dashboard →
+                        </button>
+                      ) : isAdmin ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsNotificationOpen(false);
+                            navigate('/admin');
+                          }}
+                          className="text-emerald-700 font-bold hover:underline text-xs"
+                        >
+                          Admin Dashboard →
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 )}
