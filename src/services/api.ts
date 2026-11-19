@@ -1025,17 +1025,36 @@ export const api = {
         const { data, error } = await supabase
           .from('medicines')
           .select('*')
-          .eq('catalogue_status', 'ACTIVE');
+          .eq('catalogue_status', 'ACTIVE')
+          .range(0, 1000);
         if (data && !error && data.length > 0) {
-          list = data;
-          for (const med of data) {
-            const idx = localDB.medicines.findIndex(m => m.id === med.id);
-            if (idx !== -1) {
-              localDB.medicines[idx] = med;
-            } else {
-              localDB.medicines.push(med);
+          const medVariantsMap = new Map();
+          for (const pm of PREDEFINED_MEDICINES) {
+            if (pm.variants && pm.variants.length > 0) {
+              medVariantsMap.set(pm.generic_name.toLowerCase().trim(), pm.variants);
+              medVariantsMap.set(pm.display_name.toLowerCase().trim(), pm.variants);
             }
           }
+
+          list = data.map((sm: any) => {
+            const mapped = medVariantsMap.get(sm.generic_name.toLowerCase().trim()) || medVariantsMap.get(sm.display_name.toLowerCase().trim());
+            return {
+              ...sm,
+              variants: (sm.variants && Array.isArray(sm.variants) && sm.variants.length > 0)
+                ? sm.variants
+                : (mapped || [{
+                    id: `var-${sm.id}`,
+                    medicine_id: sm.id,
+                    strength: sm.strength_form || 'Standard',
+                    dosage_form: 'Tablet',
+                    route: 'Oral',
+                    composition: sm.description || `${sm.display_name} formulation`,
+                    reference_source: 'NLEM 2022 / IP',
+                    is_prescription_required: true,
+                  }]),
+            };
+          });
+          localDB.medicines = list;
           localDB.save();
         }
       } catch (e) {
@@ -1045,18 +1064,6 @@ export const api = {
 
     if (list.length === 0) {
       list = [...localDB.medicines.filter(m => m.catalogue_status === 'ACTIVE')];
-    }
-
-    // Always merge in ALL 245 PREDEFINED_MEDICINES so every single category has medicines (no 0 meds)
-    const existingIds = new Set(list.map(m => m.id));
-    const existingGenerics = new Set(list.map(m => m.generic_name.toLowerCase().trim()));
-
-    for (const pre of PREDEFINED_MEDICINES) {
-      if (!existingIds.has(pre.id) && !existingGenerics.has(pre.generic_name.toLowerCase().trim())) {
-        list.push({ ...pre });
-        existingIds.add(pre.id);
-        existingGenerics.add(pre.generic_name.toLowerCase().trim());
-      }
     }
 
     if (filter?.name?.trim()) {
@@ -2519,27 +2526,64 @@ export const api = {
     let allPharmacies = [...localDB.pharmacies];
     let allProfiles = [...localDB.profiles];
     let allReservations = [...localDB.reservations];
+    let allMeds = [...localDB.medicines];
 
     // Live Supabase Cloud Sync for Multi-Device synchronization
     if (isLiveSupabaseConfigured()) {
       try {
-        const { data: pData } = await supabase.from('pharmacies').select('*');
-        if (pData && pData.length > 0) {
-          allPharmacies = pData;
-          localDB.pharmacies = pData;
+        const [pRes, uRes, rRes, mRes] = await Promise.all([
+          supabase.from('pharmacies').select('*'),
+          supabase.from('profiles').select('*'),
+          supabase.from('reservations').select('*'),
+          supabase.from('medicines').select('*').range(0, 1000)
+        ]);
+
+        if (pRes.data && pRes.data.length > 0) {
+          allPharmacies = pRes.data;
+          localDB.pharmacies = pRes.data;
         }
 
-        const { data: uData } = await supabase.from('profiles').select('*');
-        if (uData && uData.length > 0) {
-          allProfiles = uData;
-          localDB.profiles = uData;
+        if (uRes.data && uRes.data.length > 0) {
+          allProfiles = uRes.data;
+          localDB.profiles = uRes.data;
         }
 
-        const { data: rData } = await supabase.from('reservations').select('*');
-        if (rData) {
-          allReservations = rData;
-          localDB.reservations = rData;
+        if (rRes.data) {
+          allReservations = rRes.data;
+          localDB.reservations = rRes.data;
         }
+
+        if (mRes.data && mRes.data.length > 0) {
+          const medVariantsMap = new Map();
+          for (const pm of PREDEFINED_MEDICINES) {
+            if (pm.variants && pm.variants.length > 0) {
+              medVariantsMap.set(pm.generic_name.toLowerCase().trim(), pm.variants);
+              medVariantsMap.set(pm.display_name.toLowerCase().trim(), pm.variants);
+            }
+          }
+
+          allMeds = mRes.data.map((sm: any) => {
+            const mapped = medVariantsMap.get(sm.generic_name.toLowerCase().trim()) || medVariantsMap.get(sm.display_name.toLowerCase().trim());
+            return {
+              ...sm,
+              variants: (sm.variants && Array.isArray(sm.variants) && sm.variants.length > 0)
+                ? sm.variants
+                : (mapped || [{
+                    id: `var-${sm.id}`,
+                    medicine_id: sm.id,
+                    strength: sm.strength_form || 'Standard',
+                    dosage_form: 'Tablet',
+                    route: 'Oral',
+                    composition: sm.description || `${sm.display_name} formulation`,
+                    reference_source: 'NLEM 2022 / IP',
+                    is_prescription_required: true,
+                  }]),
+            };
+          });
+          localDB.medicines = allMeds;
+        }
+
+        localDB.save();
       } catch (e) {
         console.warn('Supabase getAdminDashboardData sync fallback:', e);
       }
@@ -2551,7 +2595,6 @@ export const api = {
     const rejected = allPharmacies.filter(p => p.verification_status === 'REJECTED');
     const disabled = allPharmacies.filter(p => p.verification_status === 'DISABLED');
 
-    const allMeds = localDB.medicines;
     let varCount = 0;
     const catSet = new Set<string>();
     allMeds.forEach(m => {
@@ -3090,11 +3133,12 @@ export const api = {
   async syncCloudDatabase(): Promise<void> {
     if (!isLiveSupabaseConfigured()) return;
     try {
-      const [pRes, uRes, iRes, rRes] = await Promise.all([
+      const [pRes, uRes, iRes, rRes, mRes] = await Promise.all([
         supabase.from('pharmacies').select('*'),
         supabase.from('profiles').select('*'),
         supabase.from('inventory').select('*'),
-        supabase.from('reservations').select('*')
+        supabase.from('reservations').select('*'),
+        supabase.from('medicines').select('*').range(0, 1000)
       ]);
 
       if (pRes.data && pRes.data.length > 0) {
@@ -3107,6 +3151,34 @@ export const api = {
             localDB.passwords[u.email.toLowerCase()] = u.password;
           }
         }
+      }
+      if (mRes.data && mRes.data.length > 0) {
+        const medVariantsMap = new Map();
+        for (const pm of PREDEFINED_MEDICINES) {
+          if (pm.variants && pm.variants.length > 0) {
+            medVariantsMap.set(pm.generic_name.toLowerCase().trim(), pm.variants);
+            medVariantsMap.set(pm.display_name.toLowerCase().trim(), pm.variants);
+          }
+        }
+
+        localDB.medicines = mRes.data.map((sm: any) => {
+          const mapped = medVariantsMap.get(sm.generic_name.toLowerCase().trim()) || medVariantsMap.get(sm.display_name.toLowerCase().trim());
+          return {
+            ...sm,
+            variants: (sm.variants && Array.isArray(sm.variants) && sm.variants.length > 0)
+              ? sm.variants
+              : (mapped || [{
+                  id: `var-${sm.id}`,
+                  medicine_id: sm.id,
+                  strength: sm.strength_form || 'Standard',
+                  dosage_form: 'Tablet',
+                  route: 'Oral',
+                  composition: sm.description || `${sm.display_name} formulation`,
+                  reference_source: 'NLEM 2022 / IP',
+                  is_prescription_required: true,
+                }]),
+          };
+        });
       }
       if (iRes.data && iRes.data.length > 0) {
         localDB.inventory = iRes.data.map((d: any) => {
