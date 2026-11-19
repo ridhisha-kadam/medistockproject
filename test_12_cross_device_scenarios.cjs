@@ -96,7 +96,7 @@ class CentralizedDatabaseServer {
     inv.last_updated = new Date().toISOString();
 
     const id = 'res-' + Math.random().toString(36).substr(2, 9);
-    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
     const newRes = {
       id,
       user_id: userId,
@@ -466,7 +466,7 @@ async function runTestSuite() {
     logResult('TEST 9', 'Admin approves pharmacy -> Instantly updates on Pharmacy device', test9Pass, `Pharmacy C status updated to APPROVED across central database`);
 
     // -------------------------------------------------------------------------
-    // TEST 10: 48-Hour Auto-Cancellation & Stock Restoration
+    // TEST 10: 4-Hour Auto-Cancellation & Stock Restoration
     // -------------------------------------------------------------------------
     // Initial stock before reservation
     const stockBefore = centralDB.inventory.find(i => i.pharmacy_id === pharmA.id && i.medicine_id === 'med-002');
@@ -481,13 +481,13 @@ async function runTestSuite() {
     const testRes = centralDB.createReservationAtomic(custProfile.id, pharmA.id, 'med-002', 5);
     const qtyAfterRes = invMed2.quantity;
 
-    // Advance time by 49 hours to trigger auto-expiration
-    const simulatedTime49hLater = Date.now() + (49 * 60 * 60 * 1000);
-    const expiredCount = centralDB.expireStaleReservationsAtomic(simulatedTime49hLater);
+    // Advance time by 4.5 hours (past 4-hour window) to trigger auto-expiration
+    const simulatedTime4hLater = Date.now() + (4.5 * 60 * 60 * 1000);
+    const expiredCount = centralDB.expireStaleReservationsAtomic(simulatedTime4hLater);
     const qtyAfterExpiry = invMed2.quantity;
 
     const test10Pass = testRes.status === 'EXPIRED' && testRes.stock_restored === true && qtyAfterExpiry === qtyBeforeRes && expiredCount >= 1;
-    logResult('TEST 10', '48-Hour auto-cancellation & stock restoration exactly once', test10Pass, `Reserved 5 units (Stock: ${qtyBeforeRes} -> ${qtyAfterRes}). Expired after 48h -> Restored to ${qtyAfterExpiry} units (${expiredCount} expired reservations processed).`);
+    logResult('TEST 10', '4-Hour auto-cancellation & stock restoration exactly once', test10Pass, `Reserved 5 units (Stock: ${qtyBeforeRes} -> ${qtyAfterRes}). Expired after 4h -> Restored to ${qtyAfterExpiry} units (${expiredCount} expired reservations processed).`);
 
     // -------------------------------------------------------------------------
     // TEST 11: Logout and login on another device retrieves identical data

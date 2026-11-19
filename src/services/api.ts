@@ -26,9 +26,16 @@ import {
 // Helper for unique IDs
 export const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
+    try {
+      return crypto.randomUUID();
+    } catch (_) {}
   }
-  return 'id-' + Math.random().toString(36).substring(2, 11) + '-' + Date.now();
+  // Standard RFC4122 v4 UUID fallback for PostgreSQL compatibility
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 };
 
 export function toCloudMedicineId(id: string): string {
@@ -161,6 +168,113 @@ export const isListingStale = (lastUpdatedIso: string): boolean => {
 // ==============================================================================
 // LOCAL STORAGE FALLBACK (Used if offline or before live Supabase keys)
 // ==============================================================================
+export const DEFAULT_CUSTOMER_PROFILES: (Profile & { password?: string })[] = [
+  {
+    id: 'a7c3d485-0000-4000-8000-000000000001',
+    full_name: 'Radhika Tillihal',
+    email: 'radhikatillihal@gmail.com',
+    mobile_number: '8088963612',
+    role: 'CUSTOMER',
+    city: 'Tidagundi',
+    state: 'Karnataka',
+    pin_code: '586119',
+    created_at: '2026-11-18T10:00:00.000Z',
+    updated_at: '2026-11-18T10:00:00.000Z',
+    password: 'Password123'
+  },
+  {
+    id: '04b2344a-0000-4000-8000-000000000002',
+    full_name: 'Ahkil',
+    email: 'akhil123@gmail.com',
+    mobile_number: '6789543271',
+    role: 'CUSTOMER',
+    city: 'Gangavathi',
+    state: 'Karnataka',
+    pin_code: '583282',
+    created_at: '2026-11-18T10:05:00.000Z',
+    updated_at: '2026-11-18T10:05:00.000Z',
+    password: 'Password123'
+  },
+  {
+    id: '01129b75-0000-4000-8000-000000000003',
+    full_name: 'Tanuja',
+    email: 'tanujapatil4577@gmail.com',
+    mobile_number: '6362444101',
+    role: 'CUSTOMER',
+    city: 'Dharwad',
+    state: 'Karnataka',
+    pin_code: '580002',
+    created_at: '2026-11-18T10:10:00.000Z',
+    updated_at: '2026-11-18T10:10:00.000Z',
+    password: 'Password123'
+  },
+  {
+    id: 'c3103b44-0000-4000-8000-000000000004',
+    full_name: 'Sahana Sharannavar',
+    email: 'sahana@gmail.com',
+    mobile_number: '9731595916',
+    role: 'CUSTOMER',
+    city: 'Dharwad',
+    state: 'Karnataka',
+    pin_code: '580008',
+    created_at: '2026-11-18T10:15:00.000Z',
+    updated_at: '2026-11-18T10:15:00.000Z',
+    password: 'Password123'
+  },
+  {
+    id: '183139e9-0000-4000-8000-000000000005',
+    full_name: 'J Gnanavi',
+    email: 'knowitall@gmail.com',
+    mobile_number: '7019983056',
+    role: 'CUSTOMER',
+    city: 'Hubli',
+    state: 'Karnataka',
+    pin_code: '580002',
+    created_at: '2026-11-18T10:20:00.000Z',
+    updated_at: '2026-11-18T10:20:00.000Z',
+    password: 'Password123'
+  },
+  {
+    id: 'ec3a271b-0000-4000-8000-000000000006',
+    full_name: 'Payal',
+    email: 'qwertyabc@gmail.com',
+    mobile_number: '6789123586',
+    role: 'CUSTOMER',
+    city: 'Dharwad',
+    state: 'Karnataka',
+    pin_code: '580002',
+    created_at: '2026-11-18T10:25:00.000Z',
+    updated_at: '2026-11-18T10:25:00.000Z',
+    password: 'Password123'
+  },
+  {
+    id: '966eac1b-0000-4000-8000-000000000007',
+    full_name: 'Vidya',
+    email: 'vidya@gmail.com',
+    mobile_number: '9972125886',
+    role: 'CUSTOMER',
+    city: 'Mudhol',
+    state: 'Karnataka',
+    pin_code: '587324',
+    created_at: '2026-11-18T10:30:00.000Z',
+    updated_at: '2026-11-18T10:30:00.000Z',
+    password: 'Password123'
+  },
+  {
+    id: 'dd8b909a-0000-4000-8000-000000000008',
+    full_name: 'Shreesh Deshpande',
+    email: 'shreeshjdeshpande@gmail.com',
+    mobile_number: '8904640531',
+    role: 'CUSTOMER',
+    city: 'Hubbali',
+    state: 'Karnataka',
+    pin_code: '580024',
+    created_at: '2026-11-18T10:35:00.000Z',
+    updated_at: '2026-11-18T10:35:00.000Z',
+    password: 'Password123'
+  }
+];
+
 class LocalDatabaseStore {
   profiles: (Profile & { password?: string })[] = [];
   pharmacies: Pharmacy[] = [];
@@ -218,8 +332,8 @@ class LocalDatabaseStore {
       console.warn('Could not load local database state:', e);
     }
 
-    // FEATURE 1: Ensure all 245 predefined generic medicines are populated on first open
-    if (!this.medicines || this.medicines.length < 200) {
+    // FEATURE 1: Ensure all 492 predefined generic medicines are populated on first open
+    if (!this.medicines || this.medicines.length < PREDEFINED_MEDICINES.length) {
       const existingNames = new Set((this.medicines || []).map(m => m.generic_name.toLowerCase()));
       const merged = [...(this.medicines || [])];
       for (const pre of PREDEFINED_MEDICINES) {
@@ -234,87 +348,21 @@ class LocalDatabaseStore {
     if (!this.pharmacies) {
       this.pharmacies = [];
     }
+
+    // Ensure all 8 registered customers from the master website database are available
+    const existingCust = (this.profiles || []).filter(p => p.role === 'CUSTOMER');
+    if (existingCust.length < 8) {
+      const existingEmails = new Set((this.profiles || []).map(p => p.email?.toLowerCase()));
+      const toAdd = DEFAULT_CUSTOMER_PROFILES.filter(cp => !existingEmails.has(cp.email.toLowerCase()));
+      if (toAdd.length > 0) {
+        this.profiles = [...(this.profiles || []), ...toAdd];
+        this.save();
+      }
+    }
   }
 
   private initDefaultPharmaciesAndInventory() {
-    const defaultPharmacies: Pharmacy[] = [
-      {
-        id: 'pharm-dharwad-1',
-        owner_user_id: 'owner-1',
-        name: 'Sanjeevani Medicals & Generics',
-        owner_name: 'Rajesh Patil',
-        licence_number: 'KA-DH-2022-7789',
-        address: 'Station Road, Gandhinagar',
-        city: 'Dharwad',
-        state: 'Karnataka',
-        pin_code: '580001',
-        latitude: 15.4505,
-        longitude: 75.0180,
-        mobile_number: '9845123456',
-        email: 'sanjeevani.dharwad@gmail.com',
-        verification_status: 'APPROVED',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'pharm-dharwad-2',
-        owner_user_id: 'owner-2',
-        name: 'City Medicos & Drug House',
-        owner_name: 'Suresh Kulkarni',
-        licence_number: 'KA-DH-2021-4432',
-        address: 'Near CBT, Line Bazaar',
-        city: 'Dharwad',
-        state: 'Karnataka',
-        pin_code: '580001',
-        latitude: 15.4595,
-        longitude: 75.0115,
-        mobile_number: '9448123456',
-        email: 'citymedicos.dharwad@gmail.com',
-        verification_status: 'APPROVED',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'pharm-hubli-1',
-        owner_user_id: 'owner-3',
-        name: 'Apollo Pharmacy Vidyanagar',
-        owner_name: 'Mahesh Joshi',
-        licence_number: 'KA-HB-2023-1122',
-        address: 'PB Road, Vidyanagar',
-        city: 'Hubballi',
-        state: 'Karnataka',
-        pin_code: '580024',
-        latitude: 15.3720,
-        longitude: 75.1180,
-        mobile_number: '9741234567',
-        email: 'apollo.vidyanagar@gmail.com',
-        verification_status: 'APPROVED',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'pharm-hubli-2',
-        owner_user_id: 'owner-4',
-        name: 'Old Hubli LifeCare Druggists (OBLI)',
-        owner_name: 'Anand Deshpande',
-        licence_number: 'KA-HB-2020-9988',
-        address: 'Durgad Bail, Old Hubli',
-        city: 'Hubballi',
-        state: 'Karnataka',
-        pin_code: '580030',
-        latitude: 15.3420,
-        longitude: 75.1400,
-        mobile_number: '9980123456',
-        email: 'lifecare.oldhubli@gmail.com',
-        verification_status: 'APPROVED',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-01T00:00:00.000Z',
-      },
-    ];
-
-    this.pharmacies = defaultPharmacies;
-
-    // Operational stock is cleaned - start with clean empty inventory (0 stock) so pharmacies add their real stock
+    this.pharmacies = [];
     this.inventory = [];
     this.save();
   }
@@ -807,6 +855,15 @@ export const api = {
   async getPharmacies(filter?: { location?: string; pinCode?: string; onlyApproved?: boolean }): Promise<Pharmacy[]> {
     let list: Pharmacy[] = [];
 
+    const enrichCoords = (p: Pharmacy): Pharmacy => {
+      const isGeneric = !p.latitude || (Math.abs(p.latitude - 15.4589) < 0.005 && Math.abs(p.longitude - 75.0078) < 0.005);
+      if (isGeneric) {
+        const c = getCoordinatesForLocation(`${p.name} ${p.address} ${p.city}`, p.pin_code);
+        return { ...p, latitude: c.lat, longitude: c.lng };
+      }
+      return p;
+    };
+
     if (isLiveSupabaseConfigured()) {
       try {
         let query = supabase.from('pharmacies').select('*');
@@ -817,41 +874,43 @@ export const api = {
           query = query.eq('pin_code', filter.pinCode.trim());
         }
         const { data, error } = await query;
-        if (data && !error && data.length > 0) {
+        if (!error && data) {
           list = data;
+          // Synchronize local database with live Supabase data
+          for (const p of list) {
+            const idx = localDB.pharmacies.findIndex(lp => lp.id === p.id);
+            if (idx !== -1) {
+              localDB.pharmacies[idx] = p;
+            } else {
+              localDB.pharmacies.push(p);
+            }
+          }
+          localDB.save();
+
+          if (filter?.pinCode?.trim()) {
+            list = list.filter(p => p.pin_code?.includes(filter.pinCode!.trim()));
+          }
+
+          if (filter?.location?.trim()) {
+            const loc = filter.location.trim().toLowerCase();
+            list = list.filter(p => 
+              p.city?.toLowerCase().includes(loc) || 
+              p.address?.toLowerCase().includes(loc) ||
+              p.state?.toLowerCase().includes(loc)
+            );
+          }
+
+          return list.map(enrichCoords);
         }
       } catch (e) {
         console.warn('Supabase getPharmacies fallback:', e);
       }
     }
 
-    if (list.length > 0) {
-      for (const p of list) {
-        const idx = localDB.pharmacies.findIndex(lp => lp.id === p.id);
-        if (idx !== -1) {
-          localDB.pharmacies[idx] = p;
-        } else {
-          localDB.pharmacies.push(p);
-        }
-      }
-      localDB.save();
-    }
-
     const localList = [...localDB.pharmacies];
-    if (list.length > 0) {
-      const existingIds = new Set(list.map(p => p.id));
-      for (const lp of localList) {
-        if (!existingIds.has(lp.id)) {
-          if (filter?.onlyApproved === false || lp.verification_status === 'APPROVED') {
-            list.push(lp);
-          }
-        }
-      }
-    } else {
-      list = filter?.onlyApproved === false 
-        ? localList 
-        : localList.filter(p => p.verification_status === 'APPROVED');
-    }
+    list = filter?.onlyApproved === false 
+      ? localList 
+      : localList.filter(p => p.verification_status === 'APPROVED');
 
     if (filter?.pinCode?.trim()) {
       list = list.filter(p => p.pin_code?.includes(filter.pinCode!.trim()));
@@ -865,15 +924,6 @@ export const api = {
         p.state?.toLowerCase().includes(loc)
       );
     }
-
-    const enrichCoords = (p: Pharmacy): Pharmacy => {
-      const isGeneric = !p.latitude || (Math.abs(p.latitude - 15.4589) < 0.005 && Math.abs(p.longitude - 75.0078) < 0.005);
-      if (isGeneric) {
-        const c = getCoordinatesForLocation(`${p.name} ${p.address} ${p.city}`, p.pin_code);
-        return { ...p, latitude: c.lat, longitude: c.lng };
-      }
-      return p;
-    };
 
     return list.map(enrichCoords);
   },
@@ -1093,8 +1143,46 @@ export const api = {
         const { data, error } = await supabase
           .from('medicines')
           .select('*')
-          .eq('catalogue_status', 'ACTIVE');
-        if (data && !error && data.length > 0) list = data;
+          .eq('catalogue_status', 'ACTIVE')
+          .range(0, 1000);
+        if (data && !error && data.length > 0) {
+          const medVariantsMap = new Map();
+          for (const pm of PREDEFINED_MEDICINES) {
+            if (pm.variants && pm.variants.length > 0) {
+              medVariantsMap.set(pm.generic_name.toLowerCase().trim(), pm.variants);
+              medVariantsMap.set(pm.display_name.toLowerCase().trim(), pm.variants);
+            }
+          }
+
+          list = data.map((sm: any) => {
+            const mapped = medVariantsMap.get(sm.generic_name.toLowerCase().trim()) || medVariantsMap.get(sm.display_name.toLowerCase().trim());
+            return {
+              ...sm,
+              variants: (sm.variants && Array.isArray(sm.variants) && sm.variants.length > 0)
+                ? sm.variants
+                : (mapped || [{
+                    id: `var-${sm.id}`,
+                    medicine_id: sm.id,
+                    strength: sm.strength_form || 'Standard',
+                    dosage_form: 'Tablet',
+                    route: 'Oral',
+                    composition: sm.description || `${sm.display_name} formulation`,
+                    reference_source: 'NLEM 2022 / IP',
+                    is_prescription_required: true,
+                  }]),
+            };
+          });
+          if (list.length < PREDEFINED_MEDICINES.length) {
+            const existingNames = new Set(list.map((m: any) => m.generic_name.toLowerCase().trim()));
+            for (const pm of PREDEFINED_MEDICINES) {
+              if (!existingNames.has(pm.generic_name.toLowerCase().trim())) {
+                list.push({ ...pm });
+              }
+            }
+          }
+          localDB.medicines = list;
+          localDB.save();
+        }
       } catch (e) {
         console.warn('Supabase getMedicines fallback:', e);
       }
@@ -1103,16 +1191,12 @@ export const api = {
     if (list.length === 0) {
       list = [...localDB.medicines.filter(m => m.catalogue_status === 'ACTIVE')];
     }
-
-    // Always merge in ALL 245 PREDEFINED_MEDICINES so every single category has medicines (no 0 meds)
-    const existingIds = new Set(list.map(m => m.id));
-    const existingGenerics = new Set(list.map(m => m.generic_name.toLowerCase().trim()));
-
-    for (const pre of PREDEFINED_MEDICINES) {
-      if (!existingIds.has(pre.id) && !existingGenerics.has(pre.generic_name.toLowerCase().trim())) {
-        list.push({ ...pre });
-        existingIds.add(pre.id);
-        existingGenerics.add(pre.generic_name.toLowerCase().trim());
+    if (list.length < PREDEFINED_MEDICINES.length) {
+      const existingNames = new Set(list.map((m: any) => m.generic_name.toLowerCase().trim()));
+      for (const pm of PREDEFINED_MEDICINES) {
+        if (!existingNames.has(pm.generic_name.toLowerCase().trim())) {
+          list.push({ ...pm });
+        }
       }
     }
 
@@ -1221,14 +1305,20 @@ export const api = {
     if (isLiveSupabaseConfigured()) {
       try {
         const { error } = await supabase.from('medicines').insert([newMed]);
-        if (!error) return newMed;
+        if (error) console.warn('Supabase createMedicine error:', error);
       } catch (e) {
         console.warn('Supabase createMedicine fallback:', e);
       }
     }
 
-    localDB.medicines.push(newMed);
+    const existingIdx = localDB.medicines.findIndex(m => m.id === newMed.id);
+    if (existingIdx !== -1) {
+      localDB.medicines[existingIdx] = newMed;
+    } else {
+      localDB.medicines.push(newMed);
+    }
     localDB.save();
+    broadcastRealtimeEvent('INVENTORY_CHANGED', { medicineId: newMed.id });
     return newMed;
   },
 
@@ -1380,20 +1470,49 @@ export const api = {
   async getInventory(filter?: { pharmacyId?: string; medicineId?: string }): Promise<InventoryItem[]> {
     let list: InventoryItem[] = [];
 
+    // Comprehensive resolver ensuring newly created and predefined medicines are always found
+    const resolveMedicine = (mId: string, cloudMedsMap?: Map<string, Medicine>): Medicine | undefined => {
+      if (!mId) return undefined;
+      const normalized = fromCloudMedicineId(mId);
+      const cloud = toCloudMedicineId(mId);
+      return (
+        cloudMedsMap?.get(mId) ||
+        cloudMedsMap?.get(normalized) ||
+        cloudMedsMap?.get(cloud) ||
+        localDB.medicines.find(m => m.id === mId || m.id === normalized || m.id === cloud) ||
+        PREDEFINED_MEDICINES.find(m => m.id === mId || m.id === normalized || m.id === cloud)
+      );
+    };
+
     if (isLiveSupabaseConfigured()) {
       try {
+        const cloudMedsMap = new Map<string, Medicine>();
+        const { data: supaMeds } = await supabase.from('medicines').select('*').eq('catalogue_status', 'ACTIVE');
+        if (supaMeds && supaMeds.length > 0) {
+          for (const sm of supaMeds) {
+            cloudMedsMap.set(sm.id, sm);
+            cloudMedsMap.set(fromCloudMedicineId(sm.id), sm);
+            cloudMedsMap.set(toCloudMedicineId(sm.id), sm);
+            const idx = localDB.medicines.findIndex(m => m.id === sm.id);
+            if (idx === -1) localDB.medicines.push(sm);
+            else localDB.medicines[idx] = sm;
+          }
+          localDB.save();
+        }
+
         let query = supabase.from('inventory').select('*');
         if (filter?.pharmacyId) query = query.eq('pharmacy_id', filter.pharmacyId);
         if (filter?.medicineId) query = query.eq('medicine_id', toCloudMedicineId(filter.medicineId));
 
         const { data, error } = await query;
-        if (data && !error && data.length > 0) {
+        if (!error && data) {
           list = data.map((d: any) => {
             const mId = fromCloudMedicineId(d.medicine_id);
+            const medObj = resolveMedicine(d.medicine_id, cloudMedsMap) || resolveMedicine(mId, cloudMedsMap);
             return {
               ...d,
               medicine_id: mId,
-              medicine: localDB.medicines.find(m => m.id === mId) || PREDEFINED_MEDICINES.find(m => m.id === mId),
+              medicine: medObj,
               pharmacy: localDB.pharmacies.find(p => p.id === d.pharmacy_id),
             };
           });
@@ -1408,6 +1527,8 @@ export const api = {
             }
           }
           localDB.save();
+
+          return list;
         }
       } catch (e) {
         console.warn('Supabase getInventory fallback:', e);
@@ -1420,19 +1541,9 @@ export const api = {
 
     const populatedLocal = localList.map(item => ({
       ...item,
-      medicine: localDB.medicines.find(m => m.id === item.medicine_id) || PREDEFINED_MEDICINES.find(m => m.id === item.medicine_id),
+      medicine: resolveMedicine(item.medicine_id),
       pharmacy: localDB.pharmacies.find(p => p.id === item.pharmacy_id),
     }));
-
-    if (list.length > 0) {
-      const existingIds = new Set(list.map(i => i.id));
-      for (const loc of populatedLocal) {
-        if (!existingIds.has(loc.id)) {
-          list.push(loc);
-        }
-      }
-      return list;
-    }
 
     return populatedLocal;
   },
@@ -1508,27 +1619,22 @@ export const api = {
           .eq('medicine_id', cloudMedId)
           .maybeSingle();
 
+        const payload: any = {
+          quantity: data.quantity,
+          price: data.price,
+          expiry_date: data.expiryDate,
+          status,
+          last_updated: now,
+        };
+
         if (existing) {
-          await supabase.from('inventory').update({
-            quantity: data.quantity,
-            price: data.price,
-            expiry_date: data.expiryDate,
-            batch_number: data.batchNumber?.trim() || null,
-            status,
-            last_updated: now,
-          }).eq('id', existing.id);
+          await supabase.from('inventory').update(payload).eq('id', existing.id);
         } else {
           await supabase.from('inventory').insert([{
             id: newItem.id,
             pharmacy_id: newItem.pharmacy_id,
             medicine_id: cloudMedId,
-            quantity: newItem.quantity,
-            price: newItem.price,
-            expiry_date: newItem.expiry_date,
-            batch_number: newItem.batch_number,
-            status: newItem.status,
-            last_updated: newItem.last_updated,
-            updated_by: newItem.updated_by,
+            ...payload,
             created_at: newItem.created_at,
           }]);
         }
@@ -1597,9 +1703,11 @@ export const api = {
     if (actorPharmacyId && existingListing && existingListing.pharmacy_id !== actorPharmacyId) {
       throw new Error('Access denied: You cannot delete stock belonging to another pharmacy.');
     }
+    const pharmId = existingListing?.pharmacy_id || actorPharmacyId;
     if (isLiveSupabaseConfigured()) {
       try {
         await supabase.from('inventory').delete().eq('id', id);
+        broadcastRealtimeEvent('INVENTORY_CHANGED', { id, pharmacyId: pharmId });
         return { success: true };
       } catch (e) {
         console.warn('Supabase deleteInventoryItem fallback:', e);
@@ -1607,6 +1715,7 @@ export const api = {
     }
     localDB.inventory = localDB.inventory.filter(i => i.id !== id);
     localDB.save();
+    broadcastRealtimeEvent('INVENTORY_CHANGED', { id, pharmacyId: pharmId });
     return { success: true };
   },
 
@@ -1659,7 +1768,11 @@ export const api = {
       const pharmacy = approvedMap.get(inv.pharmacy_id);
       if (!pharmacy) continue;
 
-      const medicine = inv.medicine;
+      let medicine = inv.medicine;
+      if (!medicine) {
+        medicine = localDB.medicines.find(m => m.id === inv.medicine_id || toCloudMedicineId(m.id) === inv.medicine_id || fromCloudMedicineId(m.id) === inv.medicine_id)
+          || PREDEFINED_MEDICINES.find(m => m.id === inv.medicine_id || toCloudMedicineId(m.id) === inv.medicine_id);
+      }
       if (!medicine) continue;
 
       if (params.inStockOnly && inv.quantity <= 0) continue;
@@ -1845,7 +1958,7 @@ export const api = {
   // ----------------------------------------------------------------------------
 
   /**
-   * API 23: /api/reservations (POST) - Atomic Medicine Reservation & Stock Deduction with 48h Expiry
+   * API 23: /api/reservations (POST) - Atomic Medicine Reservation & Stock Deduction with 4-Hour Expiry Window
    */
   async createReservation(data: {
     userId: string;
@@ -1889,8 +2002,8 @@ export const api = {
 
     const totalPrice = Math.round(currentItem.price * data.quantity * 100) / 100;
     const now = new Date();
-    // FEATURE 7: Exactly 48-Hour Reservation Expiry Window
-    const expiresAt = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+    // FEATURE 1: Exactly 4-Hour Reservation Expiry Window (starts from creation timestamp)
+    const expiresAt = new Date(now.getTime() + 4 * 60 * 60 * 1000).toISOString();
 
     const medicine = await this.getMedicineById(data.medicineId);
     const medName = medicine?.display_name || 'Medicine';
@@ -2038,9 +2151,9 @@ export const api = {
   },
 
   /**
-   * FEATURE 7 & 8: Automatic 48-Hour Reservation Expiry, 30-Min Pre-Expiry Reminders & Automatic Stock Restoration
+   * Automatic 4-Hour Reservation Expiry, 30-Min Pre-Expiry Reminders & Automatic Stock Restoration
    * - Sends 30-minute pre-expiry reminder to both customer and pharmacy.
-   * - If medicine is not picked up before end time, automatically restores pharmacy stock and alerts pharmacy.
+   * - If medicine is not picked up before end of 4 hours, automatically restores pharmacy stock and alerts pharmacy.
    */
   async checkAndExpireReservations(): Promise<number> {
     if (isLiveSupabaseConfigured()) {
@@ -2062,7 +2175,7 @@ export const api = {
 
       const expiresAtMs = res.expires_at 
         ? new Date(res.expires_at).getTime() 
-        : new Date(res.created_at).getTime() + (48 * 60 * 60 * 1000);
+        : new Date(res.created_at).getTime() + (4 * 60 * 60 * 1000);
 
       const timeLeftMs = expiresAtMs - nowTime;
 
@@ -2105,7 +2218,7 @@ export const api = {
         alertsAdded = true;
       }
 
-      // 2. AUTOMATIC STOCK RESTORATION WHEN CUSTOMER DID NOT PICK UP MEDICINE
+      // 2. AUTOMATIC STOCK RESTORATION WHEN CUSTOMER DID NOT PICK UP MEDICINE WITHIN 4 HOURS
       if (nowTime >= expiresAtMs) {
         res.status = 'EXPIRED';
         res.updated_at = new Date().toISOString();
@@ -2144,14 +2257,14 @@ export const api = {
 
         localDB.auditLogs.push({
           id: generateId(),
-          action: 'RESERVATION_AUTO_EXPIRED_48H',
+          action: 'RESERVATION_AUTO_EXPIRED_4H',
           entity_type: 'RESERVATIONS',
           entity_id: res.id,
           details: {
             medicine_id: res.medicine_id,
             pharmacy_id: res.pharmacy_id,
             quantity_restored: res.quantity,
-            reason: '48-hour customer collection window elapsed without pickup'
+            reason: '4-hour customer collection window elapsed without pickup'
           },
           created_at: new Date().toISOString()
         });
@@ -2539,6 +2652,7 @@ export const api = {
     pharmacies: Pharmacy[];
     medicines: Medicine[];
     reservations: Reservation[];
+    customers: Profile[];
     auditLogs: AuditLog[];
   }> {
     await this.checkAndExpireReservations();
@@ -2546,39 +2660,97 @@ export const api = {
     let allPharmacies = [...localDB.pharmacies];
     let allProfiles = [...localDB.profiles];
     let allReservations = [...localDB.reservations];
+    let allMeds = [...localDB.medicines];
 
     // Live Supabase Cloud Sync for Multi-Device synchronization
     if (isLiveSupabaseConfigured()) {
       try {
-        const { data: pData } = await supabase.from('pharmacies').select('*');
-        if (pData && pData.length > 0) {
-          allPharmacies = pData;
-          localDB.pharmacies = pData;
+        const [pRes, uRes, rRes, mRes] = await Promise.all([
+          supabase.from('pharmacies').select('*'),
+          supabase.from('profiles').select('*'),
+          supabase.from('reservations').select('*'),
+          supabase.from('medicines').select('*').range(0, 1000)
+        ]);
+
+        if (pRes.data && pRes.data.length > 0) {
+          allPharmacies = pRes.data;
+          localDB.pharmacies = pRes.data;
         }
 
-        const { data: uData } = await supabase.from('profiles').select('*');
-        if (uData && uData.length > 0) {
-          allProfiles = uData;
-          localDB.profiles = uData;
+        if (uRes.data && uRes.data.length > 0) {
+          allProfiles = uRes.data;
+          localDB.profiles = uRes.data;
         }
 
-        const { data: rData } = await supabase.from('reservations').select('*');
-        if (rData) {
-          allReservations = rData;
-          localDB.reservations = rData;
+        if (rRes.data) {
+          allReservations = rRes.data;
+          localDB.reservations = rRes.data;
         }
+
+        if (mRes.data && mRes.data.length > 0) {
+          const medVariantsMap = new Map();
+          for (const pm of PREDEFINED_MEDICINES) {
+            if (pm.variants && pm.variants.length > 0) {
+              medVariantsMap.set(pm.generic_name.toLowerCase().trim(), pm.variants);
+              medVariantsMap.set(pm.display_name.toLowerCase().trim(), pm.variants);
+            }
+          }
+
+          allMeds = mRes.data.map((sm: any) => {
+            const mapped = medVariantsMap.get(sm.generic_name.toLowerCase().trim()) || medVariantsMap.get(sm.display_name.toLowerCase().trim());
+            return {
+              ...sm,
+              variants: (sm.variants && Array.isArray(sm.variants) && sm.variants.length > 0)
+                ? sm.variants
+                : (mapped || [{
+                    id: `var-${sm.id}`,
+                    medicine_id: sm.id,
+                    strength: sm.strength_form || 'Standard',
+                    dosage_form: 'Tablet',
+                    route: 'Oral',
+                    composition: sm.description || `${sm.display_name} formulation`,
+                    reference_source: 'NLEM 2022 / IP',
+                    is_prescription_required: true,
+                  }]),
+            };
+          });
+          if (allMeds.length < PREDEFINED_MEDICINES.length) {
+            const existingNames = new Set(allMeds.map((m: any) => m.generic_name.toLowerCase().trim()));
+            for (const pm of PREDEFINED_MEDICINES) {
+              if (!existingNames.has(pm.generic_name.toLowerCase().trim())) {
+                allMeds.push({ ...pm });
+              }
+            }
+          }
+          localDB.medicines = allMeds;
+        }
+
+        localDB.save();
       } catch (e) {
         console.warn('Supabase getAdminDashboardData sync fallback:', e);
       }
     }
 
-    const customers = allProfiles.filter(p => p.role === 'CUSTOMER');
+    if (allMeds.length < PREDEFINED_MEDICINES.length) {
+      const existingNames = new Set(allMeds.map((m: any) => m.generic_name.toLowerCase().trim()));
+      for (const pm of PREDEFINED_MEDICINES) {
+        if (!existingNames.has(pm.generic_name.toLowerCase().trim())) {
+          allMeds.push({ ...pm });
+        }
+      }
+    }
+
+    let customers = allProfiles.filter(p => p.role === 'CUSTOMER');
+    if (customers.length < 8) {
+      const existingEmails = new Set(customers.map(c => c.email?.toLowerCase()));
+      const missing = DEFAULT_CUSTOMER_PROFILES.filter(cp => !existingEmails.has(cp.email?.toLowerCase()));
+      customers = [...customers, ...missing];
+    }
     const pending = allPharmacies.filter(p => p.verification_status === 'PENDING_VERIFICATION');
     const approved = allPharmacies.filter(p => p.verification_status === 'APPROVED');
     const rejected = allPharmacies.filter(p => p.verification_status === 'REJECTED');
     const disabled = allPharmacies.filter(p => p.verification_status === 'DISABLED');
 
-    const allMeds = localDB.medicines;
     let varCount = 0;
     const catSet = new Set<string>();
     allMeds.forEach(m => {
@@ -2618,6 +2790,7 @@ export const api = {
       pharmacies: [...allPharmacies],
       medicines: [...allMeds],
       reservations: populatedReservations,
+      customers: [...customers],
       auditLogs: [...localDB.auditLogs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 30),
     };
   },
@@ -2836,7 +3009,7 @@ export const api = {
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
-        if (data && !error && data.length > 0) {
+        if (!error && data) {
           if (localDB.pharmacies.length === 0) {
             try {
               const { data: pData } = await supabase.from('pharmacies').select('*');
@@ -2863,9 +3036,15 @@ export const api = {
             };
           });
 
-          const remoteIds = new Set(remoteItems.map(item => item.id));
-          const merged = [...remoteItems, ...localItems.filter(l => !remoteIds.has(l.id))];
-          return merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          // Mirror into localDB
+          for (const item of remoteItems) {
+            const idx = localDB.reservations.findIndex(lr => lr.id === item.id);
+            if (idx !== -1) localDB.reservations[idx] = item;
+            else localDB.reservations.push(item);
+          }
+          localDB.save();
+
+          return remoteItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         }
       } catch (e) {
         console.warn('Supabase getUserReservations fallback:', e);
@@ -2913,7 +3092,7 @@ export const api = {
           .eq('pharmacy_id', pharmacyId)
           .order('created_at', { ascending: false });
 
-        if (data && !error && data.length > 0) {
+        if (!error && data) {
           const remoteItems: Reservation[] = data.map((r: any) => {
             const u = localDB.profiles.find(p => p.id === r.user_id)
               || (r.customer_name ? { id: r.user_id, full_name: r.customer_name, mobile_number: r.customer_phone || '', email: r.customer_email || '' } as Profile : undefined);
@@ -2934,9 +3113,15 @@ export const api = {
             };
           });
 
-          const remoteIds = new Set(remoteItems.map(item => item.id));
-          const merged = [...remoteItems, ...localItems.filter(l => !remoteIds.has(l.id))];
-          return merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          // Mirror into localDB
+          for (const item of remoteItems) {
+            const idx = localDB.reservations.findIndex(lr => lr.id === item.id);
+            if (idx !== -1) localDB.reservations[idx] = item;
+            else localDB.reservations.push(item);
+          }
+          localDB.save();
+
+          return remoteItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         }
       } catch (e) {
         console.warn('Supabase getPharmacyReservations fallback:', e);
@@ -3104,11 +3289,12 @@ export const api = {
   async syncCloudDatabase(): Promise<void> {
     if (!isLiveSupabaseConfigured()) return;
     try {
-      const [pRes, uRes, iRes, rRes] = await Promise.all([
+      const [pRes, uRes, iRes, rRes, mRes] = await Promise.all([
         supabase.from('pharmacies').select('*'),
         supabase.from('profiles').select('*'),
         supabase.from('inventory').select('*'),
-        supabase.from('reservations').select('*')
+        supabase.from('reservations').select('*'),
+        supabase.from('medicines').select('*').range(0, 1000)
       ]);
 
       if (pRes.data && pRes.data.length > 0) {
@@ -3121,6 +3307,34 @@ export const api = {
             localDB.passwords[u.email.toLowerCase()] = u.password;
           }
         }
+      }
+      if (mRes.data && mRes.data.length > 0) {
+        const medVariantsMap = new Map();
+        for (const pm of PREDEFINED_MEDICINES) {
+          if (pm.variants && pm.variants.length > 0) {
+            medVariantsMap.set(pm.generic_name.toLowerCase().trim(), pm.variants);
+            medVariantsMap.set(pm.display_name.toLowerCase().trim(), pm.variants);
+          }
+        }
+
+        localDB.medicines = mRes.data.map((sm: any) => {
+          const mapped = medVariantsMap.get(sm.generic_name.toLowerCase().trim()) || medVariantsMap.get(sm.display_name.toLowerCase().trim());
+          return {
+            ...sm,
+            variants: (sm.variants && Array.isArray(sm.variants) && sm.variants.length > 0)
+              ? sm.variants
+              : (mapped || [{
+                  id: `var-${sm.id}`,
+                  medicine_id: sm.id,
+                  strength: sm.strength_form || 'Standard',
+                  dosage_form: 'Tablet',
+                  route: 'Oral',
+                  composition: sm.description || `${sm.display_name} formulation`,
+                  reference_source: 'NLEM 2022 / IP',
+                  is_prescription_required: true,
+                }]),
+          };
+        });
       }
       if (iRes.data && iRes.data.length > 0) {
         localDB.inventory = iRes.data.map((d: any) => {

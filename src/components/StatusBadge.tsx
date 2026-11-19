@@ -77,7 +77,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ type, status }) => {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-300">
           <Clock className="w-3.5 h-3.5 text-emerald-600" />
-          Reserved (48h Limit)
+          Reserved (4h Limit)
         </span>
       );
     case 'ACCEPTED':

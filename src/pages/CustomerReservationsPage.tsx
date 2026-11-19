@@ -112,11 +112,11 @@ export const CustomerReservationsPage: React.FC = () => {
     }
   };
 
-  // 48-Hour countdown helper
+  // 4-Hour countdown helper
   const getRemainingTime = (res: Reservation) => {
     const expiresAt = res.expires_at 
       ? new Date(res.expires_at).getTime() 
-      : new Date(res.created_at).getTime() + 48 * 60 * 60 * 1000;
+      : new Date(res.created_at).getTime() + 4 * 60 * 60 * 1000;
     const diffMs = expiresAt - currentTime;
 
     if (res.status === 'EXPIRED' || diffMs <= 0) {
@@ -131,7 +131,7 @@ export const CustomerReservationsPage: React.FC = () => {
 
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    const isApproaching = hours < 12;
+    const isApproaching = hours < 1;
 
     return {
       isExpired: false,
@@ -228,17 +228,17 @@ export const CustomerReservationsPage: React.FC = () => {
         </div>
       )}
 
-      {/* 48-Hour Pickup Expiry Policy Alert Banner (Section 7 & 8) */}
+      {/* 4-Hour Pickup Expiry Policy Alert Banner */}
       <div className="bg-emerald-50 border border-emerald-200/90 rounded-2xl p-4 mb-6 shadow-sm flex items-start gap-3.5">
         <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
           <Clock className="w-5 h-5" />
         </div>
         <div>
           <h4 className="text-sm font-bold text-emerald-900 mb-0.5">
-            48-Hour Counter Pickup Policy
+            4-Hour Counter Pickup Policy
           </h4>
           <p className="text-xs text-emerald-800 leading-relaxed">
-            Please collect your medicine within <strong>48 hours</strong> of reservation. Once the 48-hour window elapses, reservations expire automatically and reserved stock is safely returned to pharmacy inventory for other patients.
+            Please collect your medicine within <strong>4 hours</strong> of reservation. Once the 4-hour window elapses, reservations expire automatically and reserved stock is safely returned to pharmacy inventory for other patients.
           </p>
         </div>
       </div>
@@ -370,7 +370,7 @@ export const CustomerReservationsPage: React.FC = () => {
                         <div>
                           <span className="text-[11px] text-slate-500 font-medium block">📅 End Date & Time to Collect:</span>
                           <span className="font-bold text-emerald-800">
-                            {new Date(res.expires_at || new Date(res.created_at).getTime() + 48*60*60*1000).toLocaleString('en-IN', {
+                            {new Date(res.expires_at || new Date(res.created_at).getTime() + 4*60*60*1000).toLocaleString('en-IN', {
                               weekday: 'short',
                               day: 'numeric',
                               month: 'short',
@@ -383,7 +383,7 @@ export const CustomerReservationsPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* 48-Hour Live Countdown / Expiry Status Display */}
+                      {/* 4-Hour Live Countdown / Expiry Status Display */}
                       {isActive && (
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
@@ -395,7 +395,7 @@ export const CustomerReservationsPage: React.FC = () => {
                             {remaining.isApproaching ? `Approaching Deadline: ${remaining.text}` : `Collect within: ${remaining.text}`}
                           </span>
                           <span className="text-[11px] text-slate-500">
-                            (Deadline: {new Date(res.expires_at || new Date(res.created_at).getTime() + 48*60*60*1000).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })})
+                            (Deadline: {new Date(res.expires_at || new Date(res.created_at).getTime() + 4*60*60*1000).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })})
                           </span>
                         </div>
                       )}

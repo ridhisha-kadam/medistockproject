@@ -341,7 +341,7 @@ export const MedicineCatalogPage: React.FC = () => {
               Predefined Medicine Catalog
             </h1>
             <p className="mt-2 text-emerald-100 text-sm sm:text-base leading-relaxed">
-              Explore 240+ verified generic medicines across 40 specialized therapeutic categories with certified compositions, strength variants, and live pharmacy availability.
+              Explore 492 verified generic medicines (1,004 verified variants & strengths) across 40 specialized therapeutic categories with certified compositions, strength variants, and live pharmacy availability.
             </p>
 
             {/* Feature 3: Exact Spelling Search Bar */}
@@ -567,7 +567,7 @@ export const MedicineCatalogPage: React.FC = () => {
                 </p>
               </div>
               <div className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs self-start sm:self-auto">
-                40 Categories • 240+ Generic Medicines
+                40 Categories • 492 Generic Medicines
               </div>
             </div>
 
@@ -998,7 +998,7 @@ export const MedicineCatalogPage: React.FC = () => {
                           onClick={() => handleReserve(item)}
                           className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors whitespace-nowrap"
                         >
-                          {isReserving ? 'Reserving...' : 'Reserve Medicine (48h)'}
+                          {isReserving ? 'Reserving...' : 'Reserve Medicine (4h)'}
                         </button>
                       </div>
                     </div>

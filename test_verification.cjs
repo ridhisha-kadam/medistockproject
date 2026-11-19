@@ -75,28 +75,28 @@ testCases.forEach(tc => {
 
 console.log(`\nSearch exactness verification: ${allTestsPassed ? 'ALL TEST CASES PASSED [✓]' : 'SOME CASES FAILED [✗]'}`);
 
-// Feature 8: 48-Hour Reservation Expiry Verification
-console.log('\n--- FEATURE 7 & 8: 48-HOUR RESERVATION EXPIRY VERIFICATION ---');
+// Feature 8: 4-Hour Reservation Expiry Verification
+console.log('\n--- FEATURE 7 & 8: 4-HOUR RESERVATION EXPIRY VERIFICATION ---');
 const now = Date.now();
-const hour49Ago = new Date(now - 49 * 60 * 60 * 1000).toISOString();
-const hour10Ago = new Date(now - 10 * 60 * 60 * 1000).toISOString();
+const hour5Ago = new Date(now - 5 * 60 * 60 * 1000).toISOString();
+const hour1Ago = new Date(now - 1 * 60 * 60 * 1000).toISOString();
 
 function checkExpiry(res) {
-  const expiresAt = res.expires_at ? new Date(res.expires_at).getTime() : new Date(res.created_at).getTime() + 48 * 60 * 60 * 1000;
+  const expiresAt = res.expires_at ? new Date(res.expires_at).getTime() : new Date(res.created_at).getTime() + 4 * 60 * 60 * 1000;
   if (res.status === 'COMPLETED' || res.status === 'CANCELLED' || res.status === 'REJECTED') {
     return { isExpired: false, reason: 'Final status' };
   }
   const isPast = Date.now() > expiresAt;
   const remainingHours = Math.max(0, Math.floor((expiresAt - Date.now()) / (1000 * 60 * 60)));
-  return { isExpired: isPast, remainingHours, reason: isPast ? '48 hours elapsed' : 'Within 48h limit' };
+  return { isExpired: isPast, remainingHours, reason: isPast ? '4 hours elapsed' : 'Within 4h limit' };
 }
 
-const t1 = checkExpiry({ id: 'res-old', status: 'PENDING', created_at: hour49Ago });
-const t2 = checkExpiry({ id: 'res-recent', status: 'PENDING', created_at: hour10Ago });
-const t3 = checkExpiry({ id: 'res-done', status: 'COMPLETED', created_at: hour49Ago });
+const t1 = checkExpiry({ id: 'res-old', status: 'PENDING', created_at: hour5Ago });
+const t2 = checkExpiry({ id: 'res-recent', status: 'PENDING', created_at: hour1Ago });
+const t3 = checkExpiry({ id: 'res-done', status: 'COMPLETED', created_at: hour5Ago });
 
-console.log(`  [${t1.isExpired ? 'PASS' : 'FAIL'}] 49 hours elapsed reservation -> Status: EXPIRED, Stock Restored to Pharmacy`);
-console.log(`  [${!t2.isExpired && t2.remainingHours >= 37 ? 'PASS' : 'FAIL'}] 10 hours old reservation -> Active (${t2.remainingHours}h remaining to collect)`);
+console.log(`  [${t1.isExpired ? 'PASS' : 'FAIL'}] 5 hours elapsed reservation -> Status: EXPIRED, Stock Restored to Pharmacy`);
+console.log(`  [${!t2.isExpired && t2.remainingHours >= 2 ? 'PASS' : 'FAIL'}] 1 hour old reservation -> Active (${t2.remainingHours}h remaining to collect)`);
 console.log(`  [${!t3.isExpired ? 'PASS' : 'FAIL'}] Completed / collected reservation -> Never expires, receipt printable`);
 
 console.log('==================================================');

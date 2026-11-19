@@ -120,7 +120,7 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
 
   const pickupDeadlineDate = reservation.expires_at 
     ? new Date(reservation.expires_at) 
-    : new Date(new Date(reservation.created_at).getTime() + 48 * 60 * 60 * 1000);
+    : new Date(new Date(reservation.created_at).getTime() + 4 * 60 * 60 * 1000);
 
   const formattedPickupDeadline = new Intl.DateTimeFormat('en-IN', {
     weekday: 'short',
@@ -381,7 +381,7 @@ export const ReservationDetailsModal: React.FC<ReservationDetailsModalProps> = (
             <div>
               <span className="font-bold block">Counter Pickup Instructions:</span>
               <span>
-                Please present this Reservation Ref ID <strong>#{reservation.id.slice(-8).toUpperCase()}</strong> or your registered phone number (+91 {customerPhone}) at the pharmacy counter. Reserved stock is held until <strong>{formattedPickupDeadline}</strong>.
+                Please present this Reservation Ref ID <strong>#{reservation.id.slice(-8).toUpperCase()}</strong> or your registered phone number (+91 {customerPhone}) at the pharmacy counter. Reserved stock is held for 4 hours until <strong>{formattedPickupDeadline}</strong>.
               </span>
             </div>
           </div>

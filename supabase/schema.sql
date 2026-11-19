@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS public.reservations (
   total_price NUMERIC(10, 2) NOT NULL CHECK (total_price >= 0),
   status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ACCEPTED', 'READY_FOR_COLLECTION', 'COMPLETED', 'EXPIRED', 'REJECTED', 'CANCELLED')),
   notes TEXT,
-  expires_at TIMESTAMPTZ NOT NULL DEFAULT (timezone('utc'::text, now()) + interval '48 hours'),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (timezone('utc'::text, now()) + interval '4 hours'),
   stock_restored BOOLEAN NOT NULL DEFAULT false,
   reminder_30m_sent BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
@@ -490,7 +490,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- E. Automatic 48-Hour Reservation Expiry and Atomic Stock Restoration
+-- E. Automatic 4-Hour Reservation Expiry and Atomic Stock Restoration
 CREATE OR REPLACE FUNCTION expire_stale_reservations_atomic()
 RETURNS JSONB AS $$
 DECLARE
@@ -503,7 +503,10 @@ BEGIN
     JOIN public.medicines m ON m.id = r.medicine_id
     JOIN public.pharmacies p ON p.id = r.pharmacy_id
     WHERE r.status IN ('PENDING', 'ACCEPTED', 'READY_FOR_COLLECTION')
-      AND (r.expires_at <= timezone('utc'::text, now()) OR r.created_at <= (timezone('utc'::text, now()) - interval '48 hours'))
+      AND (
+        (r.expires_at IS NOT NULL AND r.expires_at <= timezone('utc'::text, now()))
+        OR (r.expires_at IS NULL AND r.created_at <= (timezone('utc'::text, now()) - interval '4 hours'))
+      )
       AND r.stock_restored = false
     FOR UPDATE OF r
   LOOP
@@ -531,7 +534,7 @@ BEGIN
       v_rec.pharmacy_id,
       (SELECT id FROM public.inventory WHERE pharmacy_id = v_rec.pharmacy_id AND medicine_id = v_rec.medicine_id LIMIT 1),
       'STOCK_AUTO_RESTORED',
-      format('⚠️ Customer Did Not Pick Up: Reservation #%s for %s (Qty: %s) expired after 48h. Stock (+%s units) automatically restored.', upper(substring(replace(v_rec.id::text, '-', ''), 1, 6)), v_rec.medicine_name, v_rec.quantity, v_rec.quantity)
+      format('⚠️ Customer Did Not Pick Up: Reservation #%s for %s (Qty: %s) expired after 4h. Stock (+%s units) automatically restored.', upper(substring(replace(v_rec.id::text, '-', ''), 1, 6)), v_rec.medicine_name, v_rec.quantity, v_rec.quantity)
     );
 
     -- 4. Notify Customer
@@ -540,14 +543,14 @@ BEGIN
       v_rec.pharmacy_id,
       v_rec.user_id,
       'RESERVATION_EXPIRED',
-      format('❌ Reservation Expired: You did not collect your medicine (%s) from %s within 48 hours. Stock was released.', v_rec.medicine_name, v_rec.pharmacy_name)
+      format('❌ Reservation Expired: You did not collect your medicine (%s) from %s within 4 hours. Stock was released.', v_rec.medicine_name, v_rec.pharmacy_name)
     );
 
     -- 5. Audit Log
     INSERT INTO public.audit_logs (actor_user_id, action, entity_type, entity_id, details)
     VALUES (
       v_rec.user_id,
-      'RESERVATION_AUTO_EXPIRED_48H',
+      'RESERVATION_AUTO_EXPIRED_4H',
       'RESERVATIONS',
       v_rec.id::text,
       jsonb_build_object('quantity_restored', v_rec.quantity, 'medicine_name', v_rec.medicine_name, 'pharmacy_name', v_rec.pharmacy_name)
@@ -561,8 +564,8 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 14. OPTIONAL CRON SCHEDULER (Supabase pg_cron extension)
--- Runs the 48-hour auto-expiration check every 5 minutes in background
+-- Runs the 4-hour auto-expiration check every 5 minutes in background
 -- Uncomment when pg_cron extension is enabled in your Supabase project:
 -- CREATE EXTENSION IF NOT EXISTS pg_cron;
--- SELECT cron.schedule('medistock-auto-expire-48h', '*/5 * * * *', 'SELECT expire_stale_reservations_atomic();');
+-- SELECT cron.schedule('medistock-auto-expire-4h', '*/5 * * * *', 'SELECT expire_stale_reservations_atomic();');
 
