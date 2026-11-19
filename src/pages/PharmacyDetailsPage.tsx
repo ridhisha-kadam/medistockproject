@@ -20,6 +20,7 @@ import { CallPharmacyModal } from '../components/CallPharmacyModal';
 import { EditPharmacyModal } from '../components/EditPharmacyModal';
 import { useAuth } from '../context/AuthContext';
 import { Edit3, Navigation } from 'lucide-react';
+import { getDeviceCoordinates } from '../services/native';
 
 export const PharmacyDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,15 +32,9 @@ export const PharmacyDetailsPage: React.FC = () => {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => setUserCoords({ lat: 15.4520, lng: 75.0110 }),
-        { timeout: 5000 }
-      );
-    } else {
-      setUserCoords({ lat: 15.4520, lng: 75.0110 });
-    }
+    getDeviceCoordinates()
+      .then((coords) => setUserCoords(coords))
+      .catch(() => setUserCoords({ lat: 15.4520, lng: 75.0110 }));
   }, []);
 
   // Reservation dialog

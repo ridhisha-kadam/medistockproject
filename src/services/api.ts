@@ -244,84 +244,7 @@ class LocalDatabaseStore {
   }
 
   private initDefaultPharmaciesAndInventory() {
-    const defaultPharmacies: Pharmacy[] = [
-      {
-        id: 'pharm-dharwad-1',
-        owner_user_id: 'owner-1',
-        name: 'Sanjeevani Medicals & Generics',
-        owner_name: 'Rajesh Patil',
-        licence_number: 'KA-DH-2022-7789',
-        address: 'Station Road, Gandhinagar',
-        city: 'Dharwad',
-        state: 'Karnataka',
-        pin_code: '580001',
-        latitude: 15.4505,
-        longitude: 75.0180,
-        mobile_number: '9845123456',
-        email: 'sanjeevani.dharwad@gmail.com',
-        verification_status: 'APPROVED',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'pharm-dharwad-2',
-        owner_user_id: 'owner-2',
-        name: 'City Medicos & Drug House',
-        owner_name: 'Suresh Kulkarni',
-        licence_number: 'KA-DH-2021-4432',
-        address: 'Near CBT, Line Bazaar',
-        city: 'Dharwad',
-        state: 'Karnataka',
-        pin_code: '580001',
-        latitude: 15.4595,
-        longitude: 75.0115,
-        mobile_number: '9448123456',
-        email: 'citymedicos.dharwad@gmail.com',
-        verification_status: 'APPROVED',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'pharm-hubli-1',
-        owner_user_id: 'owner-3',
-        name: 'Apollo Pharmacy Vidyanagar',
-        owner_name: 'Mahesh Joshi',
-        licence_number: 'KA-HB-2023-1122',
-        address: 'PB Road, Vidyanagar',
-        city: 'Hubballi',
-        state: 'Karnataka',
-        pin_code: '580024',
-        latitude: 15.3720,
-        longitude: 75.1180,
-        mobile_number: '9741234567',
-        email: 'apollo.vidyanagar@gmail.com',
-        verification_status: 'APPROVED',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'pharm-hubli-2',
-        owner_user_id: 'owner-4',
-        name: 'Old Hubli LifeCare Druggists (OBLI)',
-        owner_name: 'Anand Deshpande',
-        licence_number: 'KA-HB-2020-9988',
-        address: 'Durgad Bail, Old Hubli',
-        city: 'Hubballi',
-        state: 'Karnataka',
-        pin_code: '580030',
-        latitude: 15.3420,
-        longitude: 75.1400,
-        mobile_number: '9980123456',
-        email: 'lifecare.oldhubli@gmail.com',
-        verification_status: 'APPROVED',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-01T00:00:00.000Z',
-      },
-    ];
-
-    this.pharmacies = defaultPharmacies;
-
-    // Operational stock is cleaned - start with clean empty inventory (0 stock) so pharmacies add their real stock
+    this.pharmacies = [];
     this.inventory = [];
     this.save();
   }
@@ -814,6 +737,15 @@ export const api = {
   async getPharmacies(filter?: { location?: string; pinCode?: string; onlyApproved?: boolean }): Promise<Pharmacy[]> {
     let list: Pharmacy[] = [];
 
+    const enrichCoords = (p: Pharmacy): Pharmacy => {
+      const isGeneric = !p.latitude || (Math.abs(p.latitude - 15.4589) < 0.005 && Math.abs(p.longitude - 75.0078) < 0.005);
+      if (isGeneric) {
+        const c = getCoordinatesForLocation(`${p.name} ${p.address} ${p.city}`, p.pin_code);
+        return { ...p, latitude: c.lat, longitude: c.lng };
+      }
+      return p;
+    };
+
     if (isLiveSupabaseConfigured()) {
       try {
         let query = supabase.from('pharmacies').select('*');
@@ -824,41 +756,43 @@ export const api = {
           query = query.eq('pin_code', filter.pinCode.trim());
         }
         const { data, error } = await query;
-        if (data && !error && data.length > 0) {
+        if (!error && data) {
           list = data;
+          // Synchronize local database with live Supabase data
+          for (const p of list) {
+            const idx = localDB.pharmacies.findIndex(lp => lp.id === p.id);
+            if (idx !== -1) {
+              localDB.pharmacies[idx] = p;
+            } else {
+              localDB.pharmacies.push(p);
+            }
+          }
+          localDB.save();
+
+          if (filter?.pinCode?.trim()) {
+            list = list.filter(p => p.pin_code?.includes(filter.pinCode!.trim()));
+          }
+
+          if (filter?.location?.trim()) {
+            const loc = filter.location.trim().toLowerCase();
+            list = list.filter(p => 
+              p.city?.toLowerCase().includes(loc) || 
+              p.address?.toLowerCase().includes(loc) ||
+              p.state?.toLowerCase().includes(loc)
+            );
+          }
+
+          return list.map(enrichCoords);
         }
       } catch (e) {
         console.warn('Supabase getPharmacies fallback:', e);
       }
     }
 
-    if (list.length > 0) {
-      for (const p of list) {
-        const idx = localDB.pharmacies.findIndex(lp => lp.id === p.id);
-        if (idx !== -1) {
-          localDB.pharmacies[idx] = p;
-        } else {
-          localDB.pharmacies.push(p);
-        }
-      }
-      localDB.save();
-    }
-
     const localList = [...localDB.pharmacies];
-    if (list.length > 0) {
-      const existingIds = new Set(list.map(p => p.id));
-      for (const lp of localList) {
-        if (!existingIds.has(lp.id)) {
-          if (filter?.onlyApproved === false || lp.verification_status === 'APPROVED') {
-            list.push(lp);
-          }
-        }
-      }
-    } else {
-      list = filter?.onlyApproved === false 
-        ? localList 
-        : localList.filter(p => p.verification_status === 'APPROVED');
-    }
+    list = filter?.onlyApproved === false 
+      ? localList 
+      : localList.filter(p => p.verification_status === 'APPROVED');
 
     if (filter?.pinCode?.trim()) {
       list = list.filter(p => p.pin_code?.includes(filter.pinCode!.trim()));
@@ -872,15 +806,6 @@ export const api = {
         p.state?.toLowerCase().includes(loc)
       );
     }
-
-    const enrichCoords = (p: Pharmacy): Pharmacy => {
-      const isGeneric = !p.latitude || (Math.abs(p.latitude - 15.4589) < 0.005 && Math.abs(p.longitude - 75.0078) < 0.005);
-      if (isGeneric) {
-        const c = getCoordinatesForLocation(`${p.name} ${p.address} ${p.city}`, p.pin_code);
-        return { ...p, latitude: c.lat, longitude: c.lng };
-      }
-      return p;
-    };
 
     return list.map(enrichCoords);
   },
@@ -1439,7 +1364,7 @@ export const api = {
         if (filter?.medicineId) query = query.eq('medicine_id', toCloudMedicineId(filter.medicineId));
 
         const { data, error } = await query;
-        if (data && !error && data.length > 0) {
+        if (!error && data) {
           list = data.map((d: any) => {
             const mId = fromCloudMedicineId(d.medicine_id);
             const medObj = resolveMedicine(d.medicine_id, cloudMedsMap) || resolveMedicine(mId, cloudMedsMap);
@@ -1461,6 +1386,8 @@ export const api = {
             }
           }
           localDB.save();
+
+          return list;
         }
       } catch (e) {
         console.warn('Supabase getInventory fallback:', e);
@@ -1476,16 +1403,6 @@ export const api = {
       medicine: resolveMedicine(item.medicine_id),
       pharmacy: localDB.pharmacies.find(p => p.id === item.pharmacy_id),
     }));
-
-    if (list.length > 0) {
-      const existingIds = new Set(list.map(i => i.id));
-      for (const loc of populatedLocal) {
-        if (!existingIds.has(loc.id)) {
-          list.push(loc);
-        }
-      }
-      return list;
-    }
 
     return populatedLocal;
   },
@@ -1561,27 +1478,22 @@ export const api = {
           .eq('medicine_id', cloudMedId)
           .maybeSingle();
 
+        const payload: any = {
+          quantity: data.quantity,
+          price: data.price,
+          expiry_date: data.expiryDate,
+          status,
+          last_updated: now,
+        };
+
         if (existing) {
-          await supabase.from('inventory').update({
-            quantity: data.quantity,
-            price: data.price,
-            expiry_date: data.expiryDate,
-            batch_number: data.batchNumber?.trim() || null,
-            status,
-            last_updated: now,
-          }).eq('id', existing.id);
+          await supabase.from('inventory').update(payload).eq('id', existing.id);
         } else {
           await supabase.from('inventory').insert([{
             id: newItem.id,
             pharmacy_id: newItem.pharmacy_id,
             medicine_id: cloudMedId,
-            quantity: newItem.quantity,
-            price: newItem.price,
-            expiry_date: newItem.expiry_date,
-            batch_number: newItem.batch_number,
-            status: newItem.status,
-            last_updated: newItem.last_updated,
-            updated_by: newItem.updated_by,
+            ...payload,
             created_at: newItem.created_at,
           }]);
         }
@@ -2599,6 +2511,7 @@ export const api = {
     pharmacies: Pharmacy[];
     medicines: Medicine[];
     reservations: Reservation[];
+    customers: Profile[];
     auditLogs: AuditLog[];
   }> {
     await this.checkAndExpireReservations();
@@ -2678,6 +2591,7 @@ export const api = {
       pharmacies: [...allPharmacies],
       medicines: [...allMeds],
       reservations: populatedReservations,
+      customers: [...customers],
       auditLogs: [...localDB.auditLogs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 30),
     };
   },
@@ -2896,7 +2810,7 @@ export const api = {
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
-        if (data && !error && data.length > 0) {
+        if (!error && data) {
           if (localDB.pharmacies.length === 0) {
             try {
               const { data: pData } = await supabase.from('pharmacies').select('*');
@@ -2923,9 +2837,15 @@ export const api = {
             };
           });
 
-          const remoteIds = new Set(remoteItems.map(item => item.id));
-          const merged = [...remoteItems, ...localItems.filter(l => !remoteIds.has(l.id))];
-          return merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          // Mirror into localDB
+          for (const item of remoteItems) {
+            const idx = localDB.reservations.findIndex(lr => lr.id === item.id);
+            if (idx !== -1) localDB.reservations[idx] = item;
+            else localDB.reservations.push(item);
+          }
+          localDB.save();
+
+          return remoteItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         }
       } catch (e) {
         console.warn('Supabase getUserReservations fallback:', e);
@@ -2973,7 +2893,7 @@ export const api = {
           .eq('pharmacy_id', pharmacyId)
           .order('created_at', { ascending: false });
 
-        if (data && !error && data.length > 0) {
+        if (!error && data) {
           const remoteItems: Reservation[] = data.map((r: any) => {
             const u = localDB.profiles.find(p => p.id === r.user_id)
               || (r.customer_name ? { id: r.user_id, full_name: r.customer_name, mobile_number: r.customer_phone || '', email: r.customer_email || '' } as Profile : undefined);
@@ -2994,9 +2914,15 @@ export const api = {
             };
           });
 
-          const remoteIds = new Set(remoteItems.map(item => item.id));
-          const merged = [...remoteItems, ...localItems.filter(l => !remoteIds.has(l.id))];
-          return merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          // Mirror into localDB
+          for (const item of remoteItems) {
+            const idx = localDB.reservations.findIndex(lr => lr.id === item.id);
+            if (idx !== -1) localDB.reservations[idx] = item;
+            else localDB.reservations.push(item);
+          }
+          localDB.save();
+
+          return remoteItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         }
       } catch (e) {
         console.warn('Supabase getPharmacyReservations fallback:', e);
