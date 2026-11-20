@@ -66,6 +66,10 @@ export const initSupabaseRealtime = (onEvent?: (eventType: string, payload: any)
         if (onEvent) onEvent('RESERVATION_CHANGED', p);
         window.dispatchEvent(new CustomEvent('medistock_alert_updated', { detail: p }));
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (p: any) => {
+        if (onEvent) onEvent('USER_PROFILE_CHANGED', p);
+        window.dispatchEvent(new CustomEvent('medistock_users_updated', { detail: p }));
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, (p: any) => {
         window.dispatchEvent(new CustomEvent('medistock_alert_updated', { detail: p }));
       })
@@ -80,7 +84,7 @@ export const initSupabaseRealtime = (onEvent?: (eventType: string, payload: any)
   }
 };
 
-export const broadcastRealtimeEvent = (event: 'INVENTORY_CHANGED' | 'PHARMACY_STATUS_CHANGED' | 'RESERVATION_CHANGED', payload: any = {}) => {
+export const broadcastRealtimeEvent = (event: 'INVENTORY_CHANGED' | 'PHARMACY_STATUS_CHANGED' | 'RESERVATION_CHANGED' | 'USER_PROFILE_CHANGED', payload: any = {}) => {
   if (!isLiveSupabaseConfigured() || !globalRealtimeChannel) return;
   try {
     globalRealtimeChannel.send({

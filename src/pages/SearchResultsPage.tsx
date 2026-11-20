@@ -18,6 +18,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { api, isListingStale, getCoordinatesForLocation } from '../services/api';
+import { getDeviceCoordinates } from '../services/native';
 import { SearchResultItem, Medicine, Reservation } from '../types/database';
 import { THERAPEUTIC_CATEGORIES, getMedicinesForDiseaseOrCategory } from '../data/medicineCatalogData';
 import { StatusBadge } from '../components/StatusBadge';
@@ -78,23 +79,16 @@ export const SearchResultsPage: React.FC = () => {
   // Auto-detect customer's live geolocation on mount if not already in URL
   useEffect(() => {
     if (!latParam || !lngParam) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            setUserLat(pos.coords.latitude);
-            setUserLng(pos.coords.longitude);
-          },
-          (err) => {
-            console.warn('Geolocation fallback to Dharwad reference:', err);
-            setUserLat(15.4520);
-            setUserLng(75.0110);
-          },
-          { enableHighAccuracy: true, timeout: 5000 }
-        );
-      } else {
-        setUserLat(15.4520);
-        setUserLng(75.0110);
-      }
+      getDeviceCoordinates()
+        .then((coords) => {
+          setUserLat(coords.lat);
+          setUserLng(coords.lng);
+        })
+        .catch((err) => {
+          console.warn('Geolocation fallback to Dharwad reference:', err);
+          setUserLat(15.4520);
+          setUserLng(75.0110);
+        });
     }
   }, []);
 
@@ -182,21 +176,20 @@ export const SearchResultsPage: React.FC = () => {
     setSearchParams(nextParams);
   };
 
-  const handleUseLocation = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserLat(pos.coords.latitude);
-        setUserLng(pos.coords.longitude);
-        setLocation('Current Location');
-        const nextParams = new URLSearchParams(searchParams);
-        nextParams.set('lat', pos.coords.latitude.toString());
-        nextParams.set('lng', pos.coords.longitude.toString());
-        nextParams.set('loc', 'Current Location');
-        setSearchParams(nextParams);
-      },
-      (err) => console.warn('Geolocation error:', err)
-    );
+  const handleUseLocation = async () => {
+    try {
+      const coords = await getDeviceCoordinates();
+      setUserLat(coords.lat);
+      setUserLng(coords.lng);
+      setLocation('Current Location');
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('lat', coords.lat.toString());
+      nextParams.set('lng', coords.lng.toString());
+      nextParams.set('loc', 'Current Location');
+      setSearchParams(nextParams);
+    } catch (err) {
+      console.warn('Geolocation error:', err);
+    }
   };
 
   // Format last updated date human-readable
