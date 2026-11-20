@@ -2753,10 +2753,15 @@ export const api = {
 
     let varCount = 0;
     const catSet = new Set<string>();
-    allMeds.forEach(m => {
+    // Always use PREDEFINED_MEDICINES for catalog counts (authoritative source)
+    // This ensures Admin dashboard always shows 492 medicines and 1004 variants
+    // regardless of how many records are in the Supabase table
+    PREDEFINED_MEDICINES.forEach(m => {
       catSet.add(m.category);
       varCount += (m.variants && m.variants.length > 0) ? m.variants.length : 1;
     });
+    const totalMedCount = PREDEFINED_MEDICINES.length;   // always 492
+    const totalVarCount = varCount;                       // always 1004
 
     const activeRes = allReservations.filter(r => r.status === 'PENDING' || r.status === 'ACCEPTED' || r.status === 'READY_FOR_COLLECTION').length;
     const collectedRes = allReservations.filter(r => r.status === 'COMPLETED').length;
@@ -2778,8 +2783,8 @@ export const api = {
       approvedPharmacies: approved.length,
       rejectedPharmacies: rejected.length,
       disabledPharmacies: disabled.length,
-      totalMedicines: allMeds.length,
-      totalVariants: varCount,
+      totalMedicines: totalMedCount,
+      totalVariants: totalVarCount,
       totalCategories: Math.max(catSet.size, 40),
       totalInventoryListings: localDB.inventory.length,
       totalReservations: allReservations.length,

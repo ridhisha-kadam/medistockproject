@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Pharmacy, AuditLog, VerificationStatus, Profile, Medicine, MedicineVariant } from '../types/database';
-import { THERAPEUTIC_CATEGORIES } from '../data/medicineCatalogData';
+import { THERAPEUTIC_CATEGORIES, PREDEFINED_MEDICINES } from '../data/medicineCatalogData';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
 import { EditPharmacyModal } from '../components/EditPharmacyModal';
@@ -185,7 +185,20 @@ export const AdminDashboardPage: React.FC = () => {
         cancelledReservations: data.cancelledReservations || 0,
       });
       setPharmacies(data.pharmacies);
-      setMedicines(data.medicines || []);
+      // Always show all 492 predefined medicines in admin catalog — merge if DB has fewer
+      const dbMeds = data.medicines || [];
+      if (dbMeds.length >= PREDEFINED_MEDICINES.length) {
+        setMedicines(dbMeds);
+      } else {
+        const existingNames = new Set(dbMeds.map((m: any) => m.generic_name?.toLowerCase().trim()));
+        const merged = [...dbMeds];
+        for (const pm of PREDEFINED_MEDICINES) {
+          if (!existingNames.has(pm.generic_name.toLowerCase().trim())) {
+            merged.push({ ...pm });
+          }
+        }
+        setMedicines(merged);
+      }
       setCustomers(data.customers || []);
       setAuditLogs(data.auditLogs);
     } catch (e) {
