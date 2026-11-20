@@ -30,12 +30,7 @@ import {
   Pill,
   Check,
   Database,
-  Download,
-  Mail,
-  Phone,
-  MapPin,
-  UserCheck,
-  Calendar
+  Download
 } from 'lucide-react';
 
 export const AdminDashboardPage: React.FC = () => {
@@ -48,8 +43,6 @@ export const AdminDashboardPage: React.FC = () => {
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [customers, setCustomers] = useState<Profile[]>([]);
-  const [customerSearch, setCustomerSearch] = useState<string>('');
   const [selectedPharmForEdit, setSelectedPharmForEdit] = useState<Pharmacy | null>(null);
   const [stats, setStats] = useState({
     totalCustomers: 0,
@@ -186,7 +179,6 @@ export const AdminDashboardPage: React.FC = () => {
       });
       setPharmacies(data.pharmacies);
       setMedicines(data.medicines || []);
-      setCustomers(data.customers || []);
       setAuditLogs(data.auditLogs);
     } catch (e) {
       console.error('Failed loading admin dashboard data:', e);
@@ -201,20 +193,6 @@ export const AdminDashboardPage: React.FC = () => {
       return;
     }
     loadAdminData();
-
-    const handleRealtimeSync = () => {
-      loadAdminData();
-    };
-
-    window.addEventListener('medistock_alert_updated', handleRealtimeSync);
-    window.addEventListener('medistock_stock_updated', handleRealtimeSync);
-    window.addEventListener('medistock_users_updated', handleRealtimeSync);
-
-    return () => {
-      window.removeEventListener('medistock_alert_updated', handleRealtimeSync);
-      window.removeEventListener('medistock_stock_updated', handleRealtimeSync);
-      window.removeEventListener('medistock_users_updated', handleRealtimeSync);
-    };
   }, [isAdmin]);
 
   const handleApprovePharmacy = async (pharmacyId: string) => {
@@ -600,7 +578,7 @@ export const AdminDashboardPage: React.FC = () => {
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               {activeSection === 'catalog'
-                ? 'Comprehensive catalog of 492 generic medicines (1,004 verified variants) across 40 therapeutic categories. Add, edit, manage formulations & variants.'
+                ? 'Comprehensive catalog of 200+ generic medicines across 40 therapeutic categories. Add, edit, manage formulations & variants.'
                 : 'Strict administrative review portal. Pharmacy details must originate only from self-registration.'}
             </p>
           </div>
@@ -1089,167 +1067,17 @@ export const AdminDashboardPage: React.FC = () => {
         )}
 
         {/* SECTION 2: USERS MANAGEMENT */}
-        {activeSection === 'users' && (() => {
-          const filteredCustomers = customers.filter(c => {
-            if (!customerSearch.trim()) return true;
-            const q = customerSearch.toLowerCase().trim();
-            return (
-              c.full_name?.toLowerCase().includes(q) ||
-              c.email?.toLowerCase().includes(q) ||
-              c.mobile_number?.toLowerCase().includes(q) ||
-              c.city?.toLowerCase().includes(q) ||
-              c.pin_code?.toLowerCase().includes(q)
-            );
-          });
-
-          return (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-100">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                      <Users className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-base font-bold text-slate-900">Registered Customer Database</h3>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Central PostgreSQL user profile registry — synchronized automatically in real-time across Website and Android Application.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <UserCheck className="w-3.5 h-3.5 mr-1 text-emerald-600" />
-                    {customers.length} Verified Customers
-                  </span>
-                </div>
-              </div>
-
-              {/* Search Bar */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search customers by name, email, phone number, city, or PIN code..."
-                    value={customerSearch}
-                    onChange={(e) => setCustomerSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
-                  />
-                </div>
-                {customerSearch && (
-                  <button
-                    onClick={() => setCustomerSearch('')}
-                    className="px-3 py-2 text-xs text-slate-600 hover:text-slate-900 border border-slate-200 rounded-xl transition-colors"
-                  >
-                    Clear Filter
-                  </button>
-                )}
-              </div>
-
-              {/* Customers Table */}
-              <div className="overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
-                    <tr>
-                      <th className="p-3.5">Customer</th>
-                      <th className="p-3.5">Contact Details</th>
-                      <th className="p-3.5">Location & PIN</th>
-                      <th className="p-3.5">Registered Date</th>
-                      <th className="p-3.5">Account Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredCustomers.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="p-8 text-center text-slate-500">
-                          <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                          <p className="font-medium text-slate-700">No customer records found</p>
-                          <p className="text-slate-400 text-[11px] mt-0.5">
-                            {customerSearch ? 'Try adjusting your search keywords.' : 'Customers will appear here when they register.'}
-                          </p>
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredCustomers.map((c) => {
-                        const initials = (c.full_name || 'Customer')
-                          .split(' ')
-                          .map(part => part[0])
-                          .filter(Boolean)
-                          .slice(0, 2)
-                          .join('')
-                          .toUpperCase() || 'CU';
-
-                        const formattedDate = c.created_at
-                          ? new Date(c.created_at).toLocaleDateString('en-IN', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })
-                          : 'Recent';
-
-                        return (
-                          <tr key={c.id} className="hover:bg-slate-50/75 transition-colors">
-                            <td className="p-3.5">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs flex-shrink-0">
-                                  {initials}
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-slate-900">{c.full_name || 'Customer User'}</div>
-                                  <div className="text-[11px] text-slate-400 font-mono">ID: {c.id.slice(0, 8)}...</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-3.5">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-1.5 text-slate-700 font-medium">
-                                  <Mail className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                                  <span>{c.email || 'N/A'}</span>
-                                </div>
-                                {c.mobile_number && (
-                                  <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
-                                    <Phone className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                                    <span>{c.mobile_number}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-3.5">
-                              <div className="flex items-center gap-1.5 text-slate-700">
-                                <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                                <span>
-                                  {[c.city, c.state].filter(Boolean).join(', ') || 'Karnataka'}
-                                  {c.pin_code ? ` - ${c.pin_code}` : ''}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="p-3.5 text-slate-600">
-                              <div className="flex items-center gap-1.5">
-                                <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                                <span>{formattedDate}</span>
-                              </div>
-                            </td>
-                            <td className="p-3.5">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
-                                Active Customer
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-                <span>Showing {filteredCustomers.length} of {customers.length} registered customers</span>
-                <span className="text-emerald-600 font-medium">Bi-directional Supabase Sync Active</span>
-              </div>
+        {activeSection === 'users' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h3 className="text-base font-bold text-slate-900 mb-2">Registered System Users</h3>
+            <p className="text-xs text-slate-500 mb-6">
+              Total registered customers: {stats.totalCustomers}
+            </p>
+            <div className="text-xs text-slate-500 bg-slate-50 p-6 rounded-xl border border-slate-200 text-center">
+              Customer accounts and role bindings are maintained securely via Supabase Auth and Row Level Security.
             </div>
-          );
-        })()}
+          </div>
+        )}
 
         {/* SECTION 3: AUDIT LOGS FULL VIEW */}
         {activeSection === 'audit' && (

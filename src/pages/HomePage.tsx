@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Search, MapPin, Clock, ShieldCheck, PhoneCall, ArrowRight, Loader2, Navigation, BookOpen, Pill, ChevronRight } from 'lucide-react';
 import { getCoordinatesForLocation } from '../services/api';
-import { getDeviceCoordinates } from '../services/native';
 import { THERAPEUTIC_CATEGORIES } from '../data/medicineCatalogData';
 
 export const HomePage: React.FC = () => {
@@ -35,23 +34,37 @@ export const HomePage: React.FC = () => {
     navigate(`/search?q=${encodeURIComponent(medName)}`);
   };
 
-  const handleUseCurrentLocation = async () => {
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser.');
+      return;
+    }
+
     setIsLocating(true);
     setLocationError(null);
 
-    try {
-      const coords = await getDeviceCoordinates();
-      setIsLocating(false);
-      const params = new URLSearchParams();
-      if (query.trim()) params.append('q', query.trim());
-      params.append('lat', coords.lat.toString());
-      params.append('lng', coords.lng.toString());
-      params.append('loc', 'Current Location');
-      navigate(`/search?${params.toString()}`);
-    } catch (err: any) {
-      setIsLocating(false);
-      setLocationError(err?.message || 'Could not determine your location. Please enter area or PIN code manually.');
-    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setIsLocating(false);
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const params = new URLSearchParams();
+        if (query.trim()) params.append('q', query.trim());
+        params.append('lat', lat.toString());
+        params.append('lng', lng.toString());
+        params.append('loc', 'Current Location');
+        navigate(`/search?${params.toString()}`);
+      },
+      (err) => {
+        setIsLocating(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setLocationError('Location permission denied. Please enter your PIN code or city manually.');
+        } else {
+          setLocationError('Could not determine your location. Please enter area or PIN code manually.');
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
   };
 
   return (
@@ -224,7 +237,7 @@ export const HomePage: React.FC = () => {
               Comprehensive Generic Catalogue
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-              Browse 492 Verified Medicines by Therapeutic Category
+              Browse 240+ Verified Medicines by Therapeutic Category
             </h2>
             <p className="text-sm text-slate-600 mt-1 max-w-2xl">
               Strictly verified generic formulations and strengths based on India National List of Essential Medicines (NLEM 2022) and WHO ATC classifications.
@@ -269,7 +282,7 @@ export const HomePage: React.FC = () => {
             to="/catalog"
             className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1"
           >
-            View all 40 therapeutic categories and 492 generic medicines in catalog →
+            View all 40 therapeutic categories and 245+ generic medicines in catalog →
           </Link>
         </div>
       </section>

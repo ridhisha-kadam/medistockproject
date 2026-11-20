@@ -1,12 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
-import { MobileBottomNav } from './components/MobileBottomNav';
 import { api } from './services/api';
 import { initSupabaseRealtime } from './services/supabase';
-import { initNativeMobileApp } from './services/native';
 
 // Pages
 import { HomePage } from './pages/HomePage';
@@ -79,25 +77,12 @@ const AutoExpiryWatcher: React.FC = () => {
 };
 
 export const App: React.FC = () => {
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    initNativeMobileApp((connected) => {
-      setIsOnline(connected);
-    });
-  }, []);
-
   return (
     <AuthProvider>
       <CloudDatabaseSyncWatcher />
-      <AutoExpiryWatcher />
+        <AutoExpiryWatcher />
       <BrowserRouter>
-        <div className="flex flex-col min-h-screen bg-slate-50 font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-16 md:pb-0">
-          {!isOnline && (
-            <div className="bg-amber-500 text-white text-xs font-semibold py-1.5 px-4 text-center sticky top-0 z-50 shadow-sm animate-pulse">
-              ⚠️ Offline Mode: Working with locally cached data. Realtime sync will resume upon reconnection.
-            </div>
-          )}
+        <div className="flex flex-col min-h-screen bg-slate-50 font-sans selection:bg-emerald-200 selection:text-emerald-900">
           <Navbar />
           <main className="flex-1">
             <Routes>
@@ -145,7 +130,6 @@ export const App: React.FC = () => {
             </Routes>
           </main>
           <Footer />
-          <MobileBottomNav />
         </div>
       </BrowserRouter>
     </AuthProvider>
